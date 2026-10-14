@@ -12,6 +12,16 @@ defined( 'ABSPATH' ) || exit;
  */
 class Lazy {
 
+	/** Each image/embed option works on its own: lazy-loading off must not also switch off the others. */
+	public static function needed() {
+		foreach ( array( 'lazy', 'lazy_iframes', 'dimensions', 'responsive', 'youtube_facade', 'embeds_delay' ) as $key ) {
+			if ( Settings::get( $key ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static function apply( $html, array &$report ) {
 		if ( Settings::get( 'youtube_facade' ) ) {
 			$html = self::youtube( $html, $report );
@@ -22,6 +32,7 @@ class Lazy {
 		$eager   = (int) Settings::get( 'lazy_eager_count' );
 		$dims    = (bool) Settings::get( 'dimensions' );
 		$iframes = (bool) Settings::get( 'lazy_iframes' );
+		$lazy    = (bool) Settings::get( 'lazy' );
 		$index   = 0;
 		$past_hero = false; // Images after the hero are below the first screen: always lazy.
 		$n_lazy  = 0;
@@ -43,7 +54,9 @@ class Lazy {
 				}
 				$index++;
 				$is_hero = $p->get_attribute( 'data-greenlight-lcp' ) || 'high' === $p->get_attribute( 'fetchpriority' );
-				if ( $is_hero || ( ! $past_hero && $index <= $eager ) ) {
+				if ( ! $lazy ) {
+					// Lazy-loading switched off: leave loading="" as the theme printed it.
+				} elseif ( $is_hero || ( ! $past_hero && $index <= $eager ) ) {
 					if ( 'lazy' === $p->get_attribute( 'loading' ) ) {
 						$p->remove_attribute( 'loading' );
 					}
@@ -54,7 +67,7 @@ class Lazy {
 				if ( $is_hero ) {
 					$past_hero = true;
 				}
-				if ( null === $p->get_attribute( 'decoding' ) && ! $is_hero ) {
+				if ( $lazy && null === $p->get_attribute( 'decoding' ) && ! $is_hero ) {
 					$p->set_attribute( 'decoding', 'async' );
 				}
 				if ( $dims ) {

@@ -26,10 +26,17 @@ Requires WordPress 6.3+ and PHP 7.4+.
 
 ## Settings
 
-Settings → Greenlight has an on/off switch for every feature, and every entry in the lists (scripts to
-delay, never-delay exceptions, embeds to hold back, images never treated as the hero, never-defer) has
-its own switch too, with a readable name ("Meta (Facebook) Pixel", "Google Maps", "CallRail"…), a
-Remove box and a field to add your own. Switched-off entries stay in the list (saved with a leading `#`).
+Settings → Greenlight opens on an **Overview**: how many optimizations are on, one tile per area
+(with the PageSpeed metrics it helps), host cache and font status, overlapping plugins, Clear caches,
+and **Compare a page** (opens any page with and without `?greenlight=off`). The header holds the
+master switch. Tabs: **Hero image · Images & embeds · Fonts · Scripts · Cleanup · Hosting**.
+
+Every feature has its own switch, and every entry in the lists (scripts to delay, never-delay
+exceptions, embeds to hold back, images never treated as the hero, never-defer) has its own switch too,
+with a readable name ("Meta (Facebook) Pixel", "Google Maps", "CallRail"…), a remove button and a box
+to add your own. Switched-off entries stay in the list (saved with a leading `#`). Options that only
+work under another switch say so when that switch is off. All tabs are one form: **Save changes** in
+the bar at the bottom saves every tab, and the bar shows when there are unsaved changes.
 
 ## After installing
 

@@ -11,6 +11,7 @@ class Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_bar_menu', array( __CLASS__, 'toolbar' ), 100 );
 		add_action( 'admin_post_greenlight_purge', array( __CLASS__, 'handle_purge' ) );
 		add_action( 'admin_post_greenlight_fonts_clear', array( __CLASS__, 'handle_fonts_clear' ) );
@@ -23,6 +24,14 @@ class Admin {
 
 	public static function register() {
 		register_setting( 'greenlight', Settings::OPTION, array( 'sanitize_callback' => array( 'Greenlight\\Settings', 'sanitize' ) ) );
+	}
+
+	public static function assets( $hook ) {
+		if ( 'settings_page_greenlight' !== $hook ) {
+			return;
+		}
+		wp_enqueue_style( 'greenlight-admin', GREENLIGHT_URL . 'assets/admin.css', array(), GREENLIGHT_VERSION );
+		wp_enqueue_script( 'greenlight-admin', GREENLIGHT_URL . 'assets/admin.js', array(), GREENLIGHT_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
 
 	public static function action_links( $links ) {
@@ -83,56 +92,248 @@ class Admin {
 		return $found;
 	}
 
-	private static function fields() {
+
+	/**
+	 * The settings, one tab per area. Field: [ type, label, description, extras ].
+	 * Extras: requires (the switch it works under), badge, min/max/unit (number), options (choice).
+	 */
+	private static function tabs() {
 		return array(
-			'General'           => array(
-				'enabled' => array( 'check', 'Greenlight is on', 'Turn off to serve pages untouched (cleanup and cache clearing also stop). Add ?greenlight=off to any URL to compare one page.' ),
+			'hero'    => array(
+				'title'   => 'Hero image',
+				'icon'    => 'hero',
+				'intro'   => 'The biggest image on the first screen is usually what PageSpeed times as Largest Contentful Paint. Greenlight finds it on every page and gets it on screen first.',
+				'metrics' => array( 'LCP' ),
+				'fields'  => array(
+					'lcp'              => array( 'check', 'Prioritise the hero image', 'Finds the first big image (an <img> or a CSS background) and loads it first: no lazy-loading, fetchpriority="high", preloaded in <head>.' ),
+					'lcp_phone_copy'   => array( 'check', 'Smaller hero on phones', 'For CSS-background heroes from the media library, phones get the 1536px copy instead of the full-size original.', array( 'requires' => 'lcp' ) ),
+					'lcp_desktop_copy' => array( 'check', '2048px hero instead of huge originals', 'When the hero\'s original is wider than 2048px, use the 2048px copy WordPress already made.', array( 'requires' => 'lcp' ) ),
+					'lcp_webp'         => array( 'check', 'WebP copy of the hero', 'Makes a WebP version of the hero image (once, in the background) and serves it instead of the JPEG/PNG. The original file is not changed.', array( 'requires' => 'lcp' ) ),
+					'lcp_skip'         => array( 'lines', 'Never treat as the hero', 'Matched against the image address, class, alt text and id. Add a logo or badge here if Greenlight picks it by mistake.', array( 'requires' => 'lcp' ) ),
+				),
 			),
-			'Hero image (LCP)'  => array(
-				'lcp'            => array( 'check', 'Prioritise the hero image', 'Finds the first big image (an <img> or a CSS background) and loads it first: no lazy-loading, fetchpriority="high", preloaded in <head>.' ),
-				'lcp_phone_copy' => array( 'check', 'Smaller hero on phones', 'For CSS-background heroes from the media library, phones get the 1536px copy instead of the full-size original.' ),
-				'lcp_desktop_copy' => array( 'check', '2048px hero instead of huge originals', 'When the hero\'s original is wider than 2048px, use the 2048px copy WordPress already made.' ),
-				'lcp_webp'       => array( 'check', 'WebP copy of the hero', 'Makes a WebP version of the hero image (once, in the background) and serves it instead of the JPEG/PNG. The original file is not changed.' ),
-				'lcp_skip'       => array( 'lines', 'Never treat as the hero', 'Matched against the image address, class, alt text and id.' ),
+			'images'  => array(
+				'title'   => 'Images & embeds',
+				'icon'    => 'images',
+				'intro'   => 'Below-the-fold images and heavy embeds wait until they are needed, and every image keeps its space so nothing jumps while the page loads.',
+				'metrics' => array( 'LCP', 'CLS', 'SI' ),
+				'fields'  => array(
+					'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Uses the browser\'s own loading="lazy". The first images and the hero always load at once.' ),
+					'lazy_eager_count' => array( 'number', 'Images that always load at once', 'Counted from the top of the page (logo, hero…). 2 suits most sites.', array( 'requires' => 'lazy', 'min' => 0, 'max' => 10, 'unit' => 'images' ) ),
+					'dimensions'       => array( 'check', 'Add missing width and height', 'From the file name or media library, so the page doesn\'t jump as images load.' ),
+					'responsive'       => array( 'check', 'Responsive sizes for theme images', 'Media-library images printed without srcset get WordPress\'s smaller copies, so phones and small slots download small files.' ),
+					'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Maps, forms and other embeds load when scrolled near.' ),
+					'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'Replaces YouTube iframes with their thumbnail and a play button; the player loads on click.' ),
+					'embeds_delay'     => array( 'check', 'Load heavy embeds on the first interaction', 'Maps, Vimeo, review and booking widgets load on the first scroll, tap or mouse move instead of with the page.' ),
+					'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch each one on or off, or add your own (part of the embed\'s address).', array( 'requires' => 'embeds_delay' ) ),
+				),
 			),
-			'Images and embeds' => array(
-				'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Uses the browser\'s own loading="lazy". The first images and the hero always load at once.' ),
-				'lazy_eager_count' => array( 'number', 'Images that always load at once', 'Counted from the top of the page (logo, hero…). 2 suits most sites.' ),
-				'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Maps, forms and other embeds load when scrolled near.' ),
-				'dimensions'       => array( 'check', 'Add missing width and height', 'From the file name or media library, so the page doesn\'t jump as images load.' ),
-				'responsive'       => array( 'check', 'Responsive sizes for theme images', 'Media-library images printed without srcset get WordPress\'s smaller copies, so phones and small slots download small files.' ),
-				'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'Replaces YouTube iframes with their thumbnail and a play button; the player loads on click.' ),
-				'embeds_delay'     => array( 'check', 'Load heavy embeds on the first interaction', 'Maps, Vimeo, review and booking widgets load on the first scroll, tap or mouse move instead of with the page.' ),
-				'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch each one on or off; add your own (part of the embed\'s address).' ),
+			'fonts'   => array(
+				'title'   => 'Fonts',
+				'icon'    => 'fonts',
+				'intro'   => 'Google Fonts are copied to this site, so text no longer waits on a second server before it can draw.',
+				'metrics' => array( 'FCP', 'CLS' ),
+				'fields'  => array(
+					'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'Downloads Google Fonts stylesheets and files to this site (in the background) and serves them from here.' ),
+					'fonts_preload' => array( 'check', 'Preload the main font files', 'The Latin files of each family are requested before the page draws.', array( 'requires' => 'fonts_local' ) ),
+					'fonts_display' => array( 'choice', 'How text appears while fonts load', 'Sets font-display on the self-hosted fonts.', array(
+						'requires' => 'fonts_local',
+						'options'  => array(
+							'swap'     => 'Text shows at once in a fallback font, then switches. Best for speed scores.',
+							'optional' => 'No layout shift at all, but a slow first visit may keep the fallback font.',
+							'fallback' => 'Waits a moment for the font, then uses the fallback.',
+						),
+					) ),
+				),
 			),
-			'Fonts'             => array(
-				'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'Downloads Google Fonts stylesheets and files to this site (in the background) and serves them from here.' ),
-				'fonts_display' => array( 'select', 'font-display', 'swap: text shows at once in a fallback font. optional: no layout shift, but a slow first visit may keep the fallback font.', array( 'swap', 'optional', 'fallback' ) ),
-				'fonts_preload' => array( 'check', 'Preload the main font files', 'The Latin files of each family are requested before the page draws.' ),
+			'scripts' => array(
+				'title'   => 'Scripts',
+				'icon'    => 'scripts',
+				'intro'   => 'Analytics, pixels and chat widgets wait for the visitor\'s first scroll, tap or mouse move. The theme\'s and plugins\' own scripts are never delayed, only deferred.',
+				'metrics' => array( 'TBT', 'FCP', 'SI' ),
+				'fields'  => array(
+					'delay'            => array( 'check', 'Delay third-party scripts until the visitor interacts', 'Analytics, pixels, chat and widgets load on the first scroll, tap, click, key press or mouse move.' ),
+					'delay_timeout'    => array( 'number', 'Also load them after a set time', 'Set e.g. 6 to also count visitors who never touch the page in analytics. 0 waits for an interaction.', array( 'requires' => 'delay', 'min' => 0, 'max' => 60, 'unit' => 'seconds' ) ),
+					'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch each one on or off, or add your own (part of the script\'s address, or text from an inline script).', array( 'requires' => 'delay' ) ),
+					'delay_exclusions' => array( 'lines', 'Never delay', 'Wins over the list above. Consent tools must run at once; call tracking swaps phone numbers before a visitor taps one.', array( 'requires' => 'delay' ) ),
+					'defer_head'       => array( 'check', 'Defer scripts that block the first paint', 'Scripts in <head> load without holding up rendering. WordPress only defers a script when everything that depends on it can wait; jQuery and scripts with inline code are left alone.' ),
+					'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Moves jQuery and the scripts that need it below the page content. If any code earlier on a page uses jQuery, that page keeps jQuery in <head>.', array( 'requires' => 'defer_head', 'badge' => array( 'info', 'Checked on every page' ) ) ),
+					'defer_exclusions' => array( 'lines', 'Never defer', 'Script handles or parts of their address, e.g. a script that inline code in the theme calls straight away.', array( 'requires' => 'defer_head' ) ),
+				),
 			),
-			'Third-party scripts' => array(
-				'delay'            => array( 'check', 'Delay third-party scripts until the visitor interacts', 'Analytics, pixels, chat and widgets load on the first scroll, tap, click, key press or mouse move. The theme\'s and plugins\' own scripts are never delayed.' ),
-				'delay_timeout'    => array( 'number', 'Also load them after this many seconds (0 = only on interaction)', 'Set e.g. 6 to also count visitors who never touch the page in analytics.' ),
-				'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch each one on or off; add your own (part of the script\'s address, or text from an inline script).' ),
-				'delay_exclusions' => array( 'lines', 'Never delay', 'Wins over the list above. Consent tools must run at once; call tracking swaps phone numbers before a visitor taps one.' ),
-				'defer_head'       => array( 'check', 'Defer scripts that block the first paint', 'Scripts in <head> load without holding up rendering. WordPress only defers a script when everything that depends on it can wait; jQuery and scripts with inline code are left alone.' ),
-				'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Moves jQuery and the scripts that need it below the page content. Each page is checked before it is sent: if any code earlier on the page uses jQuery, that page keeps jQuery in <head>.' ),
-				'defer_exclusions' => array( 'lines', 'Never defer', 'Script handles or parts of their address, e.g. a script that inline code in the theme calls straight away.' ),
+			'cleanup' => array(
+				'title'   => 'Cleanup',
+				'icon'    => 'cleanup',
+				'intro'   => 'WordPress adds a few scripts and tags that most sites never use. Each one is a small win; together they trim the page head.',
+				'metrics' => array( 'FCP' ),
+				'fields'  => array(
+					'no_emojis'         => array( 'check', 'Remove the emoji script', 'Browsers show emoji natively.' ),
+					'no_embeds'         => array( 'check', 'Remove WordPress embed discovery', 'Stops other WordPress sites embedding this one as a card. YouTube and other embeds still work.' ),
+					'clean_head'        => array( 'check', 'Remove header clutter', 'RSD, Windows Live Writer, shortlink and generator tags.' ),
+					'no_dashicons'      => array( 'check', 'No Dashicons for visitors', 'The admin icon font is only loaded for logged-in users.' ),
+					'heartbeat'         => array( 'check', 'Calmer Heartbeat', 'Off on the front end; once a minute in wp-admin.' ),
+					'no_jquery_migrate' => array( 'check', 'Remove jQuery Migrate', 'Only if nothing on the site relies on old jQuery code.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
+					'no_block_css'      => array( 'check', 'No block-editor CSS on classic themes', 'Only on pages without blocks, and never on block themes.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
+				),
 			),
-			'WordPress cleanup' => array(
-				'no_emojis'         => array( 'check', 'Remove the emoji script', 'Browsers show emoji natively.' ),
-				'no_embeds'         => array( 'check', 'Remove WordPress embed discovery', 'Stops other WordPress sites embedding this one as a card. YouTube and other embeds still work.' ),
-				'clean_head'        => array( 'check', 'Remove header clutter', 'RSD, Windows Live Writer, shortlink and generator tags.' ),
-				'no_dashicons'      => array( 'check', 'No Dashicons for visitors', 'The admin icon font is only loaded for logged-in users.' ),
-				'heartbeat'         => array( 'check', 'Calmer Heartbeat', 'Off on the front end; once a minute in wp-admin.' ),
-				'no_jquery_migrate' => array( 'check', 'Remove jQuery Migrate', 'Only if nothing on the site relies on old jQuery code. Test after turning on.' ),
-				'no_block_css'      => array( 'check', 'No block-editor CSS on classic themes', 'Only on pages without blocks, and never on block themes.' ),
-			),
-			'Hosting'           => array(
-				'purge_on_save' => array( 'check', 'Clear host caches when content changes', 'After publishing or updating posts, menus, the Customizer, themes or plugins.' ),
-				'preconnect'    => array( 'check', 'Preconnect to third-party servers the first screen needs', 'At most three, from the page\'s <head>.' ),
+			'hosting' => array(
+				'title'   => 'Hosting',
+				'icon'    => 'hosting',
+				'intro'   => 'Greenlight has no page cache of its own: your host already caches pages. It keeps that cache fresh and opens connections early.',
+				'metrics' => array( 'FCP' ),
+				'fields'  => array(
+					'purge_on_save' => array( 'check', 'Clear host caches when content changes', 'After publishing or updating posts, menus, the Customizer, themes or plugins.' ),
+					'preconnect'    => array( 'check', 'Preconnect to third-party servers the first screen needs', 'At most three, from the page\'s <head>.' ),
+				),
 			),
 		);
+	}
+
+	/** Small line icons (24px grid, drawn with currentColor). */
+	private static function icon( $name ) {
+		$paths = array(
+			'overview' => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+			'hero'     => '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+			'images'   => '<rect x="7" y="3" width="14" height="14" rx="2.5"/><path d="M3 7.5V18a3 3 0 0 0 3 3h10.5"/><path d="M21 13l-4-4-6 6"/>',
+			'fonts'    => '<path d="M4 7V4.5h16V7"/><path d="M12 4.5V20"/><path d="M9 20h6"/>',
+			'scripts'  => '<path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/><path d="M13.5 5l-3 14"/>',
+			'cleanup'  => '<path d="M11 3l1.7 4.5L17 9.2l-4.3 1.7L11 15.5l-1.7-4.6L5 9.2l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+			'hosting'  => '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+			'bolt'     => '<path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12z"/>',
+			'refresh'  => '<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 3.5v5h-5"/>',
+			'external' => '<path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+			'trash'    => '<path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l.9 12.5a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9L17.5 7"/>',
+			'undo'     => '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+			'search'   => '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+			'warn'     => '<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
+			'check'    => '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+			'server'   => '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+			'link'     => '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+		);
+		return '<svg class="gl-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ( $paths[ $name ] ?? '' ) . '</svg>';
+	}
+
+	private static function logo() {
+		return '<svg class="gl-logo" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false">'
+			. '<rect width="40" height="40" rx="11" fill="#0d2a1b"/>'
+			. '<rect x="13" y="5" width="14" height="30" rx="7" fill="#163d29"/>'
+			. '<circle cx="20" cy="12" r="3.6" fill="#2e5440"/><circle cx="20" cy="20" r="3.6" fill="#2e5440"/>'
+			. '<circle cx="20" cy="28" r="6" fill="#3ddc84" opacity=".28"/><circle cx="20" cy="28" r="3.6" fill="#3ddc84"/>'
+			. '</svg>';
+	}
+
+	/** Checked switches / all switches in a tab, for the counters. */
+	private static function tally( array $fields, array $s ) {
+		$on    = 0;
+		$total = 0;
+		foreach ( $fields as $key => $f ) {
+			if ( 'check' === $f[0] ) {
+				$total++;
+				$on += empty( $s[ $key ] ) ? 0 : 1;
+			}
+		}
+		return array( $on, $total );
+	}
+
+	private static function switch_input( $id, $name, $value, $checked, $label_id = '' ) {
+		return '<span class="gl-switch"><input type="checkbox" role="switch" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . ( $checked ? ' checked' : '' ) . ( $label_id ? ' aria-labelledby="' . esc_attr( $label_id ) . '"' : '' ) . '><span class="gl-track" aria-hidden="true"></span></span>';
+	}
+
+	/** A switch, number or choice row inside a card. */
+	private static function render_row( $key, array $f, array $s, array $labels ) {
+		$x     = $f[3] ?? array();
+		$id    = 'greenlight-' . $key;
+		$name  = Settings::OPTION . '[' . $key . ']';
+		$req   = $x['requires'] ?? '';
+		$class = 'gl-row gl-row-' . $f[0] . ( $req && empty( $s[ $req ] ) ? ' is-inactive' : '' );
+		?>
+		<div class="<?php echo esc_attr( $class ); ?>"<?php echo $req ? ' data-requires="' . esc_attr( $req ) . '"' : ''; ?>>
+			<div class="gl-row-text">
+				<div class="gl-row-title">
+					<?php if ( 'choice' === $f[0] ) : ?>
+						<span id="<?php echo esc_attr( $id ); ?>-label"><?php echo esc_html( $f[1] ); ?></span>
+					<?php else : ?>
+						<label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $f[1] ); ?></label>
+					<?php endif; ?>
+					<?php if ( ! empty( $x['badge'] ) ) : ?><span class="gl-badge gl-badge-<?php echo esc_attr( $x['badge'][0] ); ?>"><?php echo esc_html( $x['badge'][1] ); ?></span><?php endif; ?>
+				</div>
+				<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
+				<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Works when “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>” is on</p><?php endif; ?>
+			</div>
+			<div class="gl-row-control">
+				<?php if ( 'check' === $f[0] ) : ?>
+					<?php echo self::switch_input( $id, $name, '1', ! empty( $s[ $key ] ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<?php elseif ( 'number' === $f[0] ) : ?>
+					<span class="gl-number">
+						<input type="number" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" min="<?php echo (int) $x['min']; ?>" max="<?php echo (int) $x['max']; ?>" value="<?php echo esc_attr( $s[ $key ] ); ?>" inputmode="numeric">
+						<span class="gl-unit"><?php echo esc_html( $x['unit'] ); ?></span>
+					</span>
+				<?php endif; ?>
+			</div>
+			<?php if ( 'choice' === $f[0] ) : ?>
+				<div class="gl-choices" role="radiogroup" aria-labelledby="<?php echo esc_attr( $id ); ?>-label">
+					<?php foreach ( $x['options'] as $value => $help ) : ?>
+						<label class="gl-choice">
+							<input type="radio" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $value ); ?>" <?php checked( $s[ $key ], $value ); ?>>
+							<span class="gl-choice-body"><strong><?php echo esc_html( $value ); ?></strong><span><?php echo esc_html( $help ); ?></span></span>
+						</label>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/** A list setting: one switch per entry, a remove button, and a box to add more. */
+	private static function render_list( $key, array $f, array $s, array $labels ) {
+		$x       = $f[3] ?? array();
+		$req     = $x['requires'] ?? '';
+		$entries = Settings::entries( $key );
+		$on      = count( array_filter( wp_list_pluck( $entries, 'on' ) ) );
+		$base    = Settings::OPTION . '[' . $key;
+		?>
+		<section class="gl-card gl-list-card<?php echo $req && empty( $s[ $req ] ) ? ' is-inactive' : ''; ?>"<?php echo $req ? ' data-requires="' . esc_attr( $req ) . '"' : ''; ?> data-list="<?php echo esc_attr( $key ); ?>">
+			<header class="gl-list-head">
+				<div>
+					<h3 id="gl-list-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $f[1] ); ?></h3>
+					<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
+					<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Works when “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>” is on</p><?php endif; ?>
+				</div>
+				<span class="gl-count" data-count><?php echo (int) $on; ?> on<?php echo count( $entries ) > $on ? ' · ' . (int) ( count( $entries ) - $on ) . ' off' : ''; ?></span>
+			</header>
+			<?php if ( count( $entries ) > 6 ) : ?>
+				<div class="gl-search">
+					<?php echo self::icon( 'search' ); ?>
+					<input type="search" placeholder="Filter <?php echo (int) count( $entries ); ?> entries" aria-label="Filter <?php echo esc_attr( $f[1] ); ?>" data-filter>
+				</div>
+			<?php endif; ?>
+			<ul class="gl-items" aria-labelledby="gl-list-<?php echo esc_attr( $key ); ?>">
+				<?php foreach ( $entries as $i => $e ) : $label = Settings::label( $e['value'] ); $tid = 'gl-' . $key . '-' . $i; ?>
+					<li class="gl-item" data-search="<?php echo esc_attr( strtolower( $label . ' ' . $e['value'] ) ); ?>">
+						<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $e['value'] ); ?>">
+						<label class="gl-item-main" for="<?php echo esc_attr( $tid ); ?>">
+							<?php echo self::switch_input( $tid, $base . '__on][]', (string) $i, $e['on'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+							<span class="gl-item-text">
+								<?php if ( $label ) : ?><strong><?php echo esc_html( $label ); ?></strong><?php endif; ?>
+								<code><?php echo esc_html( $e['value'] ); ?></code>
+							</span>
+						</label>
+						<label class="gl-remove" title="Remove">
+							<input type="checkbox" name="<?php echo esc_attr( $base . '__del]' ); ?>[]" value="<?php echo (int) $i; ?>">
+							<span class="gl-remove-do"><?php echo self::icon( 'trash' ); ?><span class="screen-reader-text">Remove <?php echo esc_html( $e['value'] ); ?></span></span>
+							<span class="gl-remove-undo"><?php echo self::icon( 'undo' ); ?>Undo</span>
+						</label>
+					</li>
+				<?php endforeach; ?>
+				<?php if ( ! $entries ) : ?><li class="gl-empty">Nothing here yet.</li><?php endif; ?>
+			</ul>
+			<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[]" value="">
+			<div class="gl-add">
+				<label for="gl-add-<?php echo esc_attr( $key ); ?>">Add your own <span>one per line</span></label>
+				<textarea id="gl-add-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $base . '__add]' ); ?>" rows="2" spellcheck="false" placeholder="example.com/widget.js"></textarea>
+			</div>
+		</section>
+		<?php
 	}
 
 	public static function page() {
@@ -140,78 +341,188 @@ class Admin {
 			return;
 		}
 		$s      = Settings::all();
+		$tabs   = self::tabs();
 		$notice = get_transient( 'greenlight_notice_' . get_current_user_id() );
 		if ( $notice ) {
 			delete_transient( 'greenlight_notice_' . get_current_user_id() );
 		}
-		$host   = Purge::host();
-		$fonts  = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
+		$host      = Purge::host();
+		$fonts     = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
+		$conflicts = self::conflicts();
+		$active    = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'overview'; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'overview' !== $active && ! isset( $tabs[ $active ] ) ) {
+			$active = 'overview';
+		}
+		$labels = array();
+		$on     = 0;
+		$total  = 0;
+		foreach ( $tabs as $t ) {
+			foreach ( $t['fields'] as $key => $f ) {
+				$labels[ $key ] = $f[1];
+			}
+			list( $a, $b ) = self::tally( $t['fields'], $s );
+			$on    += $a;
+			$total += $b;
+		}
+		$purge_url = wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_purge' ), 'greenlight_purge' );
+		$fonts_url = wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_fonts_clear' ), 'greenlight_fonts_clear' );
+		$nav       = array( 'overview' => array( 'title' => 'Overview', 'icon' => 'overview' ) ) + $tabs;
 		?>
-		<style>
-			.greenlight .gl-switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
-			.greenlight .gl-switch input{position:absolute;opacity:0;width:1px;height:1px}
-			.greenlight .gl-track{flex:none;position:relative;width:36px;height:20px;border-radius:999px;background:#a7aaad;transition:background .15s}
-			.greenlight .gl-track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
-			.greenlight .gl-switch input:checked + .gl-track{background:#1e8a3c}
-			.greenlight .gl-switch input:checked + .gl-track::after{transform:translateX(16px)}
-			.greenlight .gl-switch input:focus-visible + .gl-track{outline:2px solid #2271b1;outline-offset:2px}
-			.greenlight .gl-list{margin:6px 0 10px;max-width:760px}
-			.greenlight .gl-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid #e0e0e0;margin:0}
-			.greenlight .gl-list code{font-size:12px;margin-left:4px}
-			.greenlight .gl-remove{color:#b32d2e;font-size:12px;white-space:nowrap}
-			.greenlight .gl-add{display:block;max-width:760px;font-size:12px;color:#50575e}
-			@media (prefers-reduced-motion:reduce){.greenlight .gl-track,.greenlight .gl-track::after{transition:none}}
-		</style>
-		<div class="wrap greenlight">
-			<h1>Greenlight</h1>
-			<?php if ( $notice ) : ?><div class="notice notice-success"><p><?php echo esc_html( $notice ); ?></p></div><?php endif; ?>
-			<?php foreach ( self::conflicts() as $name => $advice ) : ?>
-				<div class="notice notice-warning"><p><strong><?php echo esc_html( $name ); ?> is active.</strong> It overlaps with Greenlight: <?php echo esc_html( $advice ); ?>.</p></div>
-			<?php endforeach; ?>
-			<p>
-				<strong>Page cache:</strong> <?php echo $host ? esc_html( $host . ' caches pages at the server; Greenlight clears it when content changes.' ) : 'no host page cache detected. Greenlight has no page cache of its own; use your host\'s or a caching plugin.'; ?>
-				&nbsp;·&nbsp; <strong>Self-hosted font sets:</strong> <?php echo (int) count( $fonts ); ?>
-				&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_purge' ), 'greenlight_purge' ) ); ?>">Clear caches</a>
-				<?php if ( $fonts ) : ?>&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_fonts_clear' ), 'greenlight_fonts_clear' ) ); ?>">Re-download fonts</a><?php endif; ?>
-			</p>
-			<p class="description">Check a page with and without Greenlight: open it with <code>?greenlight=off</code> added to the URL, and look for the <code>&lt;!-- Greenlight … --&gt;</code> line at the end of the page source.</p>
-			<form method="post" action="options.php">
+		<div class="wrap gl-wrap">
+			<h1 class="screen-reader-text">Greenlight</h1>
+			<form method="post" action="options.php" id="gl-app" class="gl-app<?php echo empty( $s['enabled'] ) ? ' is-off' : ''; ?>" data-home="<?php echo esc_url( home_url( '/' ) ); ?>">
+				<script>document.getElementById('gl-app').classList.add('gl-js');</script>
 				<?php settings_fields( 'greenlight' ); ?>
-				<?php foreach ( self::fields() as $section => $fields ) : ?>
-					<h2><?php echo esc_html( $section ); ?></h2>
-					<table class="form-table" role="presentation">
-						<?php foreach ( $fields as $key => $f ) : $name = Settings::OPTION . '[' . $key . ']'; $id = 'greenlight-' . $key; ?>
-							<tr>
-								<th scope="row"><label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $f[1] ); ?></label></th>
-								<td>
-									<?php if ( 'check' === $f[0] ) : ?>
-										<label class="gl-switch"><input type="checkbox" role="switch" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( ! empty( $s[ $key ] ) ); ?>><span class="gl-track" aria-hidden="true"></span><span class="gl-text"><?php echo esc_html( $f[2] ); ?></span></label>
-									<?php elseif ( 'number' === $f[0] ) : ?>
-										<input type="number" min="0" max="60" class="small-text" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $s[ $key ] ); ?>">
-										<p class="description"><?php echo esc_html( $f[2] ); ?></p>
-									<?php elseif ( 'select' === $f[0] ) : ?>
-										<select id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>"><?php foreach ( $f[3] as $o ) : ?><option value="<?php echo esc_attr( $o ); ?>" <?php selected( $s[ $key ], $o ); ?>><?php echo esc_html( $o ); ?></option><?php endforeach; ?></select>
-										<p class="description"><?php echo esc_html( $f[2] ); ?></p>
-									<?php else : ?>
-										<p class="description" style="margin-top:0"><?php echo esc_html( $f[2] ); ?></p>
-										<ul class="gl-list">
-											<?php foreach ( Settings::entries( $key ) as $i => $e ) : $label = Settings::label( $e['value'] ); ?>
-												<li>
-													<input type="hidden" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__items]' ); ?>[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $e['value'] ); ?>">
-													<label class="gl-switch"><input type="checkbox" role="switch" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__on]' ); ?>[]" value="<?php echo (int) $i; ?>" <?php checked( $e['on'] ); ?>><span class="gl-track" aria-hidden="true"></span><span class="gl-text"><?php echo $label ? esc_html( $label ) . ' ' : ''; ?><code><?php echo esc_html( $e['value'] ); ?></code></span></label>
-													<label class="gl-remove"><input type="checkbox" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__del]' ); ?>[]" value="<?php echo (int) $i; ?>"> Remove</label>
-												</li>
+
+				<header class="gl-head">
+					<div class="gl-brand">
+						<?php echo self::logo(); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+						<div>
+							<div class="gl-brand-name">Greenlight <span class="gl-version">v<?php echo esc_html( GREENLIGHT_VERSION ); ?></span></div>
+							<div class="gl-brand-tag">Core Web Vitals, without breaking the site</div>
+						</div>
+					</div>
+					<div class="gl-head-side">
+						<ul class="gl-chips" aria-label="Status">
+							<li class="gl-chip<?php echo $host ? ' is-good' : ''; ?>"><?php echo self::icon( 'server' ); ?><?php echo $host ? esc_html( $host . ' page cache' ) : 'No host page cache'; ?></li>
+							<li class="gl-chip<?php echo $fonts ? ' is-good' : ''; ?>"><?php echo self::icon( 'fonts' ); ?><?php echo (int) count( $fonts ); ?> font set<?php echo 1 === count( $fonts ) ? '' : 's'; ?> self-hosted</li>
+							<li class="gl-chip <?php echo $conflicts ? 'is-warn' : 'is-good'; ?>"><?php echo self::icon( $conflicts ? 'warn' : 'check' ); ?><?php echo $conflicts ? (int) count( $conflicts ) . ' overlapping plugin' . ( 1 === count( $conflicts ) ? '' : 's' ) : 'No conflicts'; ?></li>
+						</ul>
+						<label class="gl-master" for="greenlight-enabled">
+							<span class="gl-master-text"><span class="gl-master-on">Optimizing</span><span class="gl-master-off">Paused</span></span>
+							<?php echo self::switch_input( 'greenlight-enabled', Settings::OPTION . '[enabled]', '1', ! empty( $s['enabled'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+						</label>
+					</div>
+				</header>
+				<hr class="wp-header-end">
+
+				<?php if ( $notice ) : ?>
+					<div class="gl-toast" role="status"><?php echo self::icon( 'check' ); ?><?php echo esc_html( $notice ); ?></div>
+				<?php endif; ?>
+				<div class="gl-off-banner" role="status"><?php echo self::icon( 'warn' ); ?><div><strong>Greenlight is paused.</strong> Pages are served untouched and cache clearing stops. Your settings below are kept; switch it back on and save to resume.</div></div>
+
+				<nav class="gl-tabs" role="tablist" aria-label="Greenlight settings">
+					<?php foreach ( $nav as $slug => $t ) : ?>
+						<button type="button" role="tab" class="gl-tab" id="gl-tab-<?php echo esc_attr( $slug ); ?>" aria-controls="gl-panel-<?php echo esc_attr( $slug ); ?>" aria-selected="<?php echo $slug === $active ? 'true' : 'false'; ?>" tabindex="<?php echo $slug === $active ? '0' : '-1'; ?>" data-tab="<?php echo esc_attr( $slug ); ?>">
+							<?php echo self::icon( $t['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+							<span><?php echo esc_html( $t['title'] ); ?></span>
+							<?php if ( isset( $t['fields'] ) ) : list( $a, $b ) = self::tally( $t['fields'], $s ); ?>
+								<span class="gl-tab-count" data-tally="<?php echo esc_attr( $slug ); ?>"><?php echo (int) $a; ?>/<?php echo (int) $b; ?></span>
+							<?php endif; ?>
+						</button>
+					<?php endforeach; ?>
+				</nav>
+
+				<section class="gl-panel<?php echo 'overview' === $active ? ' is-active' : ''; ?>" role="tabpanel" id="gl-panel-overview" aria-labelledby="gl-tab-overview" tabindex="0">
+					<div class="gl-overview">
+						<div class="gl-overview-main">
+							<div class="gl-card gl-score">
+								<div class="gl-ring" style="--p:<?php echo $total ? round( $on / $total * 100 ) : 0; ?>" data-ring>
+									<span><strong data-total-on><?php echo (int) $on; ?></strong>of <?php echo (int) $total; ?></span>
+								</div>
+								<div>
+									<h2>Optimizations switched on</h2>
+									<p>Every option is safe on most sites and on by default, except the two in Cleanup marked “Test after turning on”. Pick an area below to fine-tune it, and use “Compare a page” to see any page with and without Greenlight.</p>
+								</div>
+							</div>
+							<?php if ( $conflicts ) : ?>
+								<div class="gl-card gl-alert">
+									<?php echo self::icon( 'warn' ); ?>
+									<div>
+										<h3>Other speed plugins are doing some of the same jobs</h3>
+										<ul>
+											<?php foreach ( $conflicts as $name => $advice ) : ?>
+												<li><strong><?php echo esc_html( $name ); ?>:</strong> <?php echo esc_html( $advice ); ?>.</li>
 											<?php endforeach; ?>
 										</ul>
-										<input type="hidden" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__items]' ); ?>[]" value="">
-										<label class="gl-add">Add (one per line)<textarea name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__add]' ); ?>" rows="2" class="large-text code"></textarea></label>
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</table>
+									</div>
+								</div>
+							<?php endif; ?>
+							<div class="gl-tiles">
+								<?php foreach ( $tabs as $slug => $t ) : list( $a, $b ) = self::tally( $t['fields'], $s ); ?>
+									<button type="button" class="gl-tile" data-goto="<?php echo esc_attr( $slug ); ?>">
+										<span class="gl-tile-top">
+											<span class="gl-tile-ico"><?php echo self::icon( $t['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
+											<span class="gl-metrics"><?php foreach ( $t['metrics'] as $m ) : ?><span class="gl-metric"><?php echo esc_html( $m ); ?></span><?php endforeach; ?></span>
+										</span>
+										<strong class="gl-tile-title"><?php echo esc_html( $t['title'] ); ?></strong>
+										<span class="gl-tile-text"><?php echo esc_html( $t['intro'] ); ?></span>
+										<span class="gl-bar"><span style="width:<?php echo $b ? round( $a / $b * 100 ) : 0; ?>%" data-bar="<?php echo esc_attr( $slug ); ?>"></span></span>
+										<span class="gl-tile-foot" data-tile-tally="<?php echo esc_attr( $slug ); ?>"><?php echo (int) $a; ?> of <?php echo (int) $b; ?> on</span>
+									</button>
+								<?php endforeach; ?>
+							</div>
+						</div>
+						<aside class="gl-overview-side">
+							<div class="gl-card gl-side-card">
+								<h3>Compare a page</h3>
+								<p>Open any page with and without Greenlight. The page source ends with a <code>&lt;!-- Greenlight … --&gt;</code> line listing what changed.</p>
+								<div class="gl-compare">
+									<span class="gl-compare-host"><?php echo esc_html( preg_replace( '#^https?://#', '', untrailingslashit( home_url() ) ) ); ?></span>
+									<input type="text" value="/" aria-label="Page path" spellcheck="false" data-compare>
+								</div>
+								<div class="gl-btn-row">
+									<button type="button" class="gl-btn gl-btn-soft" data-compare-open="on"><?php echo self::icon( 'external' ); ?>With Greenlight</button>
+									<button type="button" class="gl-btn gl-btn-ghost" data-compare-open="off"><?php echo self::icon( 'external' ); ?>Without</button>
+								</div>
+							</div>
+							<div class="gl-card gl-side-card">
+								<h3>Caches</h3>
+								<p><?php echo $host ? esc_html( $host . ' caches pages at the server. Greenlight clears that cache whenever content changes.' ) : 'No host page cache found. Greenlight has no page cache of its own; use your host\'s or a caching plugin.'; ?></p>
+								<div class="gl-btn-row">
+									<a class="gl-btn gl-btn-soft" href="<?php echo esc_url( $purge_url ); ?>"><?php echo self::icon( 'bolt' ); ?>Clear caches</a>
+									<?php if ( $fonts ) : ?><a class="gl-btn gl-btn-ghost" href="<?php echo esc_url( $fonts_url ); ?>"><?php echo self::icon( 'refresh' ); ?>Re-download fonts</a><?php endif; ?>
+								</div>
+							</div>
+							<div class="gl-card gl-side-card gl-tip">
+								<h3>Checking from the command line</h3>
+								<p><code>wp greenlight status</code> shows every setting; add <code>?greenlight=off</code> to any URL to see a page untouched.</p>
+							</div>
+						</aside>
+					</div>
+				</section>
+
+				<?php foreach ( $tabs as $slug => $t ) : ?>
+					<section class="gl-panel<?php echo $slug === $active ? ' is-active' : ''; ?>" role="tabpanel" id="gl-panel-<?php echo esc_attr( $slug ); ?>" aria-labelledby="gl-tab-<?php echo esc_attr( $slug ); ?>" tabindex="0" data-panel="<?php echo esc_attr( $slug ); ?>">
+						<div class="gl-panel-head">
+							<span class="gl-panel-ico"><?php echo self::icon( $t['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
+							<div>
+								<h2><?php echo esc_html( $t['title'] ); ?> <span class="gl-metrics"><?php foreach ( $t['metrics'] as $m ) : ?><span class="gl-metric"><?php echo esc_html( $m ); ?></span><?php endforeach; ?></span></h2>
+								<p><?php echo esc_html( $t['intro'] ); ?></p>
+							</div>
+						</div>
+						<?php
+						$group = array();
+						$flush = function () use ( &$group, $s, $labels ) {
+							if ( $group ) {
+								echo '<div class="gl-card gl-rows">';
+								foreach ( $group as $k => $f ) {
+									self::render_row( $k, $f, $s, $labels );
+								}
+								echo '</div>';
+								$group = array();
+							}
+						};
+						foreach ( $t['fields'] as $key => $f ) {
+							if ( 'lines' === $f[0] ) {
+								$flush();
+								self::render_list( $key, $f, $s, $labels );
+							} else {
+								$group[ $key ] = $f;
+							}
+						}
+						$flush();
+						?>
+					</section>
 				<?php endforeach; ?>
-				<?php submit_button(); ?>
+
+				<div class="gl-savebar">
+					<span class="gl-savebar-status"><span class="gl-dot" aria-hidden="true"></span><span data-save-status>All changes saved</span></span>
+					<span class="gl-btn-row">
+						<button type="button" class="gl-btn gl-btn-ghost" data-discard hidden>Discard</button>
+						<button type="submit" name="submit" class="gl-btn gl-btn-primary">Save changes</button>
+					</span>
+				</div>
 			</form>
 		</div>
 		<?php

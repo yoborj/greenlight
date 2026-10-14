@@ -52,7 +52,7 @@ class Optimizer {
 			if ( Settings::get( 'lcp' ) ) {
 				$out = Lcp::apply( $out, $report );
 			}
-			if ( Settings::get( 'lazy' ) ) {
+			if ( Lazy::needed() ) {
 				$out = Lazy::apply( $out, $report );
 			}
 			if ( Settings::get( 'delay' ) ) {
