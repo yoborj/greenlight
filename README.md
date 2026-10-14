@@ -24,6 +24,13 @@ Requires WordPress 6.3+ and PHP 7.4+.
 | Cleanup | small wins | Emoji script, embed discovery, header clutter, Dashicons for visitors, front-end Heartbeat. Optional: jQuery Migrate, block CSS on classic themes. |
 | Host cache purge | — | WP Engine (memcached, page cache, CDN), SiteGround, Kinsta, Pantheon, object cache; on save, from the toolbar, or `wp greenlight purge`. |
 
+## After installing
+
+Activating or deactivating Greenlight clears the host's page cache, so pages rebuild with (or without)
+it. Self-hosted fonts and the WebP hero copy are made in the background after the first page view or
+two (about a minute), then the cache is cleared again. Behind Cloudflare, edge copies can take 10–20
+minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
+
 ## Not breaking the site
 
 - Only plain front-end HTML pages are touched: never wp-admin, AJAX, REST, feeds, previews or the

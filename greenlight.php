@@ -36,6 +36,10 @@ Greenlight\Optimizer::init();
 Greenlight\Defer::init();
 Greenlight\Admin::init();
 
+// Pages cached before activation (or still cached after deactivation) would keep their old version.
+register_activation_hook( __FILE__, function () { add_action( 'shutdown', function () { Greenlight\Purge::all( 'activated' ); } ); } );
+register_deactivation_hook( __FILE__, function () { Greenlight\Purge::all( 'deactivated' ); } );
+
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once GREENLIGHT_DIR . 'includes/class-cli.php';
 	WP_CLI::add_command( 'greenlight', 'Greenlight\\CLI' );
