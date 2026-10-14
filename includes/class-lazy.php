@@ -28,7 +28,7 @@ class Lazy {
 		$n_dims  = 0;
 		$n_srcset   = 0;
 		$n_iframes  = 0;
-		$delay_iframes = Settings::lines( 'delay_iframes' );
+		$delay_iframes = Settings::get( 'embeds_delay' ) ? Settings::lines( 'delay_iframes' ) : array();
 		$responsive = (bool) Settings::get( 'responsive' );
 
 		while ( $p->next_tag() ) {

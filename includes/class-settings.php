@@ -17,6 +17,7 @@ class Settings {
 			// Hero / LCP image.
 			'lcp'                => 1,
 			'lcp_phone_copy'     => 1,
+			'lcp_desktop_copy'   => 1,
 			'lcp_skip'           => "logo\nicon\navatar\ngravatar\nemoji\nspinner\nplaceholder",
 
 			// Lazy-loading.
@@ -26,6 +27,7 @@ class Settings {
 			'dimensions'         => 1,
 			'responsive'         => 1,
 			'youtube_facade'     => 1,
+			'embeds_delay'       => 1,
 			'delay_iframes'      => "google.com/maps\nmaps.google.\nplayer.vimeo.com\nwidget.trustpilot.com\ncalendly.com",
 			'lcp_webp'           => 1,
 
@@ -72,7 +74,6 @@ class Settings {
 			'analytics.tiktok.com',
 			'js.hs-scripts.com',
 			'js.hs-analytics.net',
-			'js.hs-banner.com',
 			'bat.bing.com',
 			'embed.tawk.to',
 			'widget.intercom.io',
@@ -108,6 +109,7 @@ class Settings {
 			'complianz',
 			'cmplz',
 			'cookiebot',
+			'js.hs-banner.com',
 			'onetrust',
 			'termly',
 			'iubenda',
@@ -130,9 +132,90 @@ class Settings {
 		return $all[ $key ] ?? null;
 	}
 
-	/** Non-empty trimmed lines of a textarea setting. */
+	/** List settings whose entries can be switched on and off one by one. */
+	const LISTS = array( 'lcp_skip', 'delay_patterns', 'delay_exclusions', 'defer_exclusions', 'delay_iframes' );
+
+	/** Active entries of a list setting (one per line; a line starting with "#" is switched off). */
 	public static function lines( $key ) {
-		return array_values( array_filter( array_map( 'trim', explode( "\n", (string) self::get( $key ) ) ), 'strlen' ) );
+		$out = array();
+		foreach ( self::entries( $key ) as $e ) {
+			if ( $e['on'] ) {
+				$out[] = $e['value'];
+			}
+		}
+		return $out;
+	}
+
+	/** Every entry of a list setting: [ ['value' => …, 'on' => bool], … ]. */
+	public static function entries( $key ) {
+		$out = array();
+		foreach ( explode( "\n", (string) self::get( $key ) ) as $line ) {
+			$line = trim( $line );
+			if ( '' === $line || '#' === $line ) {
+				continue;
+			}
+			$off   = 0 === strpos( $line, '#' );
+			$out[] = array( 'value' => trim( $off ? substr( $line, 1 ) : $line ), 'on' => ! $off );
+		}
+		return $out;
+	}
+
+	/** A readable name for a list entry, when it's one we know. */
+	public static function label( $value ) {
+		static $names = array(
+			'googletagmanager.com/gtag/js' => 'Google Analytics 4 / Google Ads (gtag.js)',
+			'googletagmanager.com/gtm.js'  => 'Google Tag Manager',
+			'google-analytics.com/analytics.js' => 'Universal Analytics (old)',
+			'connect.facebook.net'         => 'Meta (Facebook) Pixel',
+			'static.hotjar.com'            => 'Hotjar',
+			'script.hotjar.com'            => 'Hotjar (loader)',
+			'clarity.ms'                   => 'Microsoft Clarity',
+			'snap.licdn.com'               => 'LinkedIn Insight Tag',
+			'analytics.tiktok.com'         => 'TikTok Pixel',
+			'js.hs-scripts.com'            => 'HubSpot tracking',
+			'js.hs-analytics.net'          => 'HubSpot analytics',
+			'js.hs-banner.com'             => 'HubSpot cookie banner',
+			'bat.bing.com'                 => 'Microsoft Ads (Bing UET)',
+			'embed.tawk.to'                => 'Tawk.to chat',
+			'widget.intercom.io'           => 'Intercom chat',
+			'js.intercomcdn.com'           => 'Intercom chat (files)',
+			'js.driftt.com'                => 'Drift chat',
+			'client.crisp.chat'            => 'Crisp chat',
+			'static.zdassets.com'          => 'Zendesk chat',
+			'platform.twitter.com'         => 'X (Twitter) embeds',
+			'assets.pinterest.com'         => 'Pinterest',
+			'cdn.userway.org'              => 'UserWay accessibility widget',
+			'gtm.start'                    => 'Google Tag Manager (inline snippet)',
+			"gtag('config'"                => 'Google Analytics setup (inline)',
+			'gtag("config"'                => 'Google Analytics setup (inline)',
+			"fbq('init'"                   => 'Meta Pixel setup (inline)',
+			'fbq("init"'                   => 'Meta Pixel setup (inline)',
+			'_linkedin_partner_id'         => 'LinkedIn setup (inline)',
+			'ttq.load'                     => 'TikTok setup (inline)',
+			'clarity.ms/tag'               => 'Microsoft Clarity setup (inline)',
+			'hotjar.com/c/hotjar-'         => 'Hotjar setup (inline)',
+			'consent'                      => 'Anything that mentions "consent"',
+			'cookieyes'                    => 'CookieYes',
+			'cookie-law-info'              => 'CookieYes (GDPR Cookie Consent)',
+			'complianz'                    => 'Complianz',
+			'cmplz'                        => 'Complianz (scripts)',
+			'cookiebot'                    => 'Cookiebot',
+			'onetrust'                     => 'OneTrust',
+			'termly'                       => 'Termly',
+			'iubenda'                      => 'iubenda',
+			'usercentrics'                 => 'Usercentrics',
+			'tctm.co'                      => 'CallTrackingMetrics',
+			'calltrackingmetrics'          => 'CallTrackingMetrics',
+			'callrail'                     => 'CallRail',
+			'recaptcha'                    => 'Google reCAPTCHA',
+			'turnstile'                    => 'Cloudflare Turnstile',
+			'google.com/maps'              => 'Google Maps',
+			'maps.google.'                 => 'Google Maps (old embed)',
+			'player.vimeo.com'             => 'Vimeo',
+			'widget.trustpilot.com'        => 'Trustpilot',
+			'calendly.com'                 => 'Calendly',
+		);
+		return $names[ $value ] ?? null;
 	}
 
 	public static function sanitize( $input ) {
@@ -143,6 +226,24 @@ class Settings {
 				$out[ $key ] = isset( $input[ $key ] ) ? max( 0, (int) $input[ $key ] ) : 0;
 			} elseif ( 'fonts_display' === $key ) {
 				$out[ $key ] = in_array( $input[ $key ] ?? '', array( 'swap', 'optional', 'fallback' ), true ) ? $input[ $key ] : 'swap';
+			} elseif ( in_array( $key, self::LISTS, true ) && isset( $input[ $key . '__items' ] ) ) {
+				// From the settings page: one toggle (and remove box) per entry, plus new entries.
+				$on    = array_map( 'intval', (array) ( $input[ $key . '__on' ] ?? array() ) );
+				$del   = array_map( 'intval', (array) ( $input[ $key . '__del' ] ?? array() ) );
+				$lines = array();
+				foreach ( (array) $input[ $key . '__items' ] as $i => $value ) {
+					$value = trim( sanitize_text_field( wp_unslash( $value ) ) );
+					if ( '' !== $value && ! in_array( (int) $i, $del, true ) ) {
+						$lines[] = ( in_array( (int) $i, $on, true ) ? '' : '#' ) . $value;
+					}
+				}
+				foreach ( explode( "\n", sanitize_textarea_field( wp_unslash( $input[ $key . '__add' ] ?? '' ) ) ) as $new ) {
+					$new = trim( $new );
+					if ( '' !== $new ) {
+						$lines[] = ltrim( $new, '#' );
+					}
+				}
+				$out[ $key ] = implode( "\n", array_unique( $lines ) );
 			} else {
 				$out[ $key ] = isset( $input[ $key ] ) ? sanitize_textarea_field( wp_unslash( $input[ $key ] ) ) : $default;
 			}

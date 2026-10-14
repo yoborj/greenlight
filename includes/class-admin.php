@@ -91,8 +91,9 @@ class Admin {
 			'Hero image (LCP)'  => array(
 				'lcp'            => array( 'check', 'Prioritise the hero image', 'Finds the first big image (an <img> or a CSS background) and loads it first: no lazy-loading, fetchpriority="high", preloaded in <head>.' ),
 				'lcp_phone_copy' => array( 'check', 'Smaller hero on phones', 'For CSS-background heroes from the media library, phones get the 1536px copy instead of the full-size original.' ),
+				'lcp_desktop_copy' => array( 'check', '2048px hero instead of huge originals', 'When the hero\'s original is wider than 2048px, use the 2048px copy WordPress already made.' ),
 				'lcp_webp'       => array( 'check', 'WebP copy of the hero', 'Makes a WebP version of the hero image (once, in the background) and serves it instead of the JPEG/PNG. The original file is not changed.' ),
-				'lcp_skip'       => array( 'lines', 'Never treat as the hero', 'One per line, matched against the image URL, class, alt and id.' ),
+				'lcp_skip'       => array( 'lines', 'Never treat as the hero', 'Matched against the image address, class, alt text and id.' ),
 			),
 			'Images and embeds' => array(
 				'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Uses the browser\'s own loading="lazy". The first images and the hero always load at once.' ),
@@ -101,7 +102,8 @@ class Admin {
 				'dimensions'       => array( 'check', 'Add missing width and height', 'From the file name or media library, so the page doesn\'t jump as images load.' ),
 				'responsive'       => array( 'check', 'Responsive sizes for theme images', 'Media-library images printed without srcset get WordPress\'s smaller copies, so phones and small slots download small files.' ),
 				'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'Replaces YouTube iframes with their thumbnail and a play button; the player loads on click.' ),
-				'delay_iframes'    => array( 'lines', 'Load these embeds on the first interaction', 'Iframes whose address contains any of these (maps, Vimeo, review and booking widgets) load on the first scroll, tap or mouse move instead of with the page. One per line; empty to turn off.' ),
+				'embeds_delay'     => array( 'check', 'Load heavy embeds on the first interaction', 'Maps, Vimeo, review and booking widgets load on the first scroll, tap or mouse move instead of with the page.' ),
+				'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch each one on or off; add your own (part of the embed\'s address).' ),
 			),
 			'Fonts'             => array(
 				'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'Downloads Google Fonts stylesheets and files to this site (in the background) and serves them from here.' ),
@@ -111,11 +113,11 @@ class Admin {
 			'Third-party scripts' => array(
 				'delay'            => array( 'check', 'Delay third-party scripts until the visitor interacts', 'Analytics, pixels, chat and widgets load on the first scroll, tap, click, key press or mouse move. The theme\'s and plugins\' own scripts are never delayed.' ),
 				'delay_timeout'    => array( 'number', 'Also load them after this many seconds (0 = only on interaction)', 'Set e.g. 6 to also count visitors who never touch the page in analytics.' ),
-				'delay_patterns'   => array( 'lines', 'Delay scripts that contain', 'One per line, matched against the script URL and inline script text.' ),
-				'delay_exclusions' => array( 'lines', 'Never delay scripts that contain', 'Consent tools must run at once. Call tracking is excluded so numbers swap before a visitor taps one.' ),
+				'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch each one on or off; add your own (part of the script\'s address, or text from an inline script).' ),
+				'delay_exclusions' => array( 'lines', 'Never delay', 'Wins over the list above. Consent tools must run at once; call tracking swaps phone numbers before a visitor taps one.' ),
 				'defer_head'       => array( 'check', 'Defer scripts that block the first paint', 'Scripts in <head> load without holding up rendering. WordPress only defers a script when everything that depends on it can wait; jQuery and scripts with inline code are left alone.' ),
 				'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Moves jQuery and the scripts that need it below the page content. Each page is checked before it is sent: if any code earlier on the page uses jQuery, that page keeps jQuery in <head>.' ),
-				'defer_exclusions' => array( 'lines', 'Never defer (script handles or URL parts)', 'One per line, e.g. a script an inline snippet in the theme calls straight away.' ),
+				'defer_exclusions' => array( 'lines', 'Never defer', 'Script handles or parts of their address, e.g. a script that inline code in the theme calls straight away.' ),
 			),
 			'WordPress cleanup' => array(
 				'no_emojis'         => array( 'check', 'Remove the emoji script', 'Browsers show emoji natively.' ),
@@ -145,6 +147,21 @@ class Admin {
 		$host   = Purge::host();
 		$fonts  = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
 		?>
+		<style>
+			.greenlight .gl-switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+			.greenlight .gl-switch input{position:absolute;opacity:0;width:1px;height:1px}
+			.greenlight .gl-track{flex:none;position:relative;width:36px;height:20px;border-radius:999px;background:#a7aaad;transition:background .15s}
+			.greenlight .gl-track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+			.greenlight .gl-switch input:checked + .gl-track{background:#1e8a3c}
+			.greenlight .gl-switch input:checked + .gl-track::after{transform:translateX(16px)}
+			.greenlight .gl-switch input:focus-visible + .gl-track{outline:2px solid #2271b1;outline-offset:2px}
+			.greenlight .gl-list{margin:6px 0 10px;max-width:760px}
+			.greenlight .gl-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid #e0e0e0;margin:0}
+			.greenlight .gl-list code{font-size:12px;margin-left:4px}
+			.greenlight .gl-remove{color:#b32d2e;font-size:12px;white-space:nowrap}
+			.greenlight .gl-add{display:block;max-width:760px;font-size:12px;color:#50575e}
+			@media (prefers-reduced-motion:reduce){.greenlight .gl-track,.greenlight .gl-track::after{transition:none}}
+		</style>
 		<div class="wrap greenlight">
 			<h1>Greenlight</h1>
 			<?php if ( $notice ) : ?><div class="notice notice-success"><p><?php echo esc_html( $notice ); ?></p></div><?php endif; ?>
@@ -168,7 +185,7 @@ class Admin {
 								<th scope="row"><label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $f[1] ); ?></label></th>
 								<td>
 									<?php if ( 'check' === $f[0] ) : ?>
-										<label><input type="checkbox" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( ! empty( $s[ $key ] ) ); ?>> <?php echo esc_html( $f[2] ); ?></label>
+										<label class="gl-switch"><input type="checkbox" role="switch" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( ! empty( $s[ $key ] ) ); ?>><span class="gl-track" aria-hidden="true"></span><span class="gl-text"><?php echo esc_html( $f[2] ); ?></span></label>
 									<?php elseif ( 'number' === $f[0] ) : ?>
 										<input type="number" min="0" max="60" class="small-text" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $s[ $key ] ); ?>">
 										<p class="description"><?php echo esc_html( $f[2] ); ?></p>
@@ -176,8 +193,18 @@ class Admin {
 										<select id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>"><?php foreach ( $f[3] as $o ) : ?><option value="<?php echo esc_attr( $o ); ?>" <?php selected( $s[ $key ], $o ); ?>><?php echo esc_html( $o ); ?></option><?php endforeach; ?></select>
 										<p class="description"><?php echo esc_html( $f[2] ); ?></p>
 									<?php else : ?>
-										<textarea id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" rows="6" class="large-text code"><?php echo esc_textarea( $s[ $key ] ); ?></textarea>
-										<p class="description"><?php echo esc_html( $f[2] ); ?></p>
+										<p class="description" style="margin-top:0"><?php echo esc_html( $f[2] ); ?></p>
+										<ul class="gl-list">
+											<?php foreach ( Settings::entries( $key ) as $i => $e ) : $label = Settings::label( $e['value'] ); ?>
+												<li>
+													<input type="hidden" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__items]' ); ?>[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $e['value'] ); ?>">
+													<label class="gl-switch"><input type="checkbox" role="switch" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__on]' ); ?>[]" value="<?php echo (int) $i; ?>" <?php checked( $e['on'] ); ?>><span class="gl-track" aria-hidden="true"></span><span class="gl-text"><?php echo $label ? esc_html( $label ) . ' ' : ''; ?><code><?php echo esc_html( $e['value'] ); ?></code></span></label>
+													<label class="gl-remove"><input type="checkbox" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__del]' ); ?>[]" value="<?php echo (int) $i; ?>"> Remove</label>
+												</li>
+											<?php endforeach; ?>
+										</ul>
+										<input type="hidden" name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__items]' ); ?>[]" value="">
+										<label class="gl-add">Add (one per line)<textarea name="<?php echo esc_attr( Settings::OPTION . '[' . $key . '__add]' ); ?>" rows="2" class="large-text code"></textarea></label>
 									<?php endif; ?>
 								</td>
 							</tr>

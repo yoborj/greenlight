@@ -80,7 +80,7 @@ class Lcp {
 				// Other lazy-loaders keep backgrounds in data-bg; nothing to undo for inline styles.
 				$p->set_attribute( 'data-greenlight-lcp', '1' );
 				$phone   = Settings::get( 'lcp_phone_copy' ) ? Html::phone_copy( $url ) : null;
-				$desktop = Settings::get( 'lcp_phone_copy' ) ? Html::desktop_copy( $url ) : null;
+				$desktop = Settings::get( 'lcp_desktop_copy' ) ? Html::desktop_copy( $url ) : null;
 				if ( $desktop ) {
 					// Originals wider than 2048px are wasted on a hero; use WordPress's 2048px copy everywhere.
 					$style = str_replace( $url, $desktop, $style );

@@ -16,13 +16,20 @@ Requires WordPress 6.3+ and PHP 7.4+.
 | Delay third-party scripts | TBT, INP | Analytics, pixels, chat and widgets load on the first scroll, tap, click, key or mouse move (optionally after N seconds). **The theme's and plugins' own scripts are never delayed.** Consent tools and call tracking are excluded by default. |
 | Defer head scripts | FCP, Speed Index | Uses WordPress's own loading strategies: a `<head>` script is deferred only when everything that depends on it can wait. jQuery and scripts with inline code are left alone. |
 | jQuery in the footer | FCP, LCP | Moves jQuery and the scripts that need it to the footer, where WordPress prints them in dependency order. Every page is checked before it's sent: if inline code (or an unknown blocking script) earlier on the page needs jQuery, jQuery is put back right before it. |
-| Embeds on interaction | LCP, TBT | Map, Vimeo, review and booking iframes (editable list) load on the first interaction instead of with the page. A Google Map alone is ~450 KB. |
+| Embeds on interaction | LCP, TBT | Map, Vimeo, review and booking iframes load on the first interaction instead of with the page (each one can be switched off). A Google Map alone is ~450 KB. |
 | Lazy-loading | LCP, bandwidth | Native `loading="lazy"` below the fold; the first N images and the hero always load at once. Iframes (maps, embeds) lazy-load. |
 | Missing width/height | CLS | Added from the file name (`-1024x683`) or the media library, so the page doesn't jump. |
 | Responsive theme images | LCP, bandwidth | Media-library images printed without `srcset` get WordPress's smaller copies, with `sizes="auto"` on lazy images. |
 | YouTube thumbnail | TBT, bandwidth | YouTube iframes become their thumbnail and a play button; the player loads on click. |
 | Cleanup | small wins | Emoji script, embed discovery, header clutter, Dashicons for visitors, front-end Heartbeat. Optional: jQuery Migrate, block CSS on classic themes. |
 | Host cache purge | — | WP Engine (memcached, page cache, CDN), SiteGround, Kinsta, Pantheon, object cache; on save, from the toolbar, or `wp greenlight purge`. |
+
+## Settings
+
+Settings → Greenlight has an on/off switch for every feature, and every entry in the lists (scripts to
+delay, never-delay exceptions, embeds to hold back, images never treated as the hero, never-defer) has
+its own switch too, with a readable name ("Meta (Facebook) Pixel", "Google Maps", "CallRail"…), a
+Remove box and a field to add your own. Switched-off entries stay in the list (saved with a leading `#`).
 
 ## After installing
 
