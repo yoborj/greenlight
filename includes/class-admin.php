@@ -123,7 +123,7 @@ class Admin {
 				'fields'  => array(
 					'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Images load as they scroll into view.' ),
 					'lazy_eager_count' => array( 'number', 'Always load the first', 'From the top of the page. 2 suits most sites.', array( 'requires' => 'lazy', 'min' => 0, 'max' => 10, 'unit' => 'images' ) ),
-					'dimensions'       => array( 'check', 'Add missing image sizes', 'Stops the page jumping as images load.' ),
+					'dimensions'       => array( 'check', 'Add missing image sizes', 'Stops the page jumping as images load. Never changes how big an image shows.' ),
 					'responsive'       => array( 'check', 'Responsive theme images', 'Smaller files for phones.' ),
 					'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Embeds load when scrolled near.' ),
 					'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'The player loads on click.' ),

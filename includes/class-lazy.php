@@ -37,6 +37,7 @@ class Lazy {
 		$past_hero = false; // Images after the hero are below the first screen: always lazy.
 		$n_lazy  = 0;
 		$n_dims  = 0;
+		$n_shape = 0;
 		$n_srcset   = 0;
 		$n_iframes  = 0;
 		$delay_iframes = Settings::get( 'embeds_delay' ) ? Settings::lines( 'delay_iframes' ) : array();
@@ -76,14 +77,22 @@ class Lazy {
 					if ( ( null === $w || null === $h ) && ! preg_match( '/\.svg(\?|$)/i', $src ) ) {
 						$size = Html::image_size( $src );
 						if ( $size ) {
+							// Sides Greenlight adds give the browser the image's shape, never its size: the theme's
+							// CSS may set only one side (e.g. a logo at height: 40px), and an added attribute on the
+							// other side would stretch the image. data-greenlight-size lists the sides we added; the
+							// zero-specificity rule below keeps them at "auto" unless the theme's CSS sizes them.
 							if ( null === $w && null === $h ) {
 								$p->set_attribute( 'width', (string) $size[0] );
 								$p->set_attribute( 'height', (string) $size[1] );
+								$p->set_attribute( 'data-greenlight-size', 'width height' );
 							} elseif ( null === $h && is_numeric( $w ) ) {
 								$p->set_attribute( 'height', (string) round( $w * $size[1] / $size[0] ) );
+								$p->set_attribute( 'data-greenlight-size', 'height' );
 							} elseif ( null === $w && is_numeric( $h ) ) {
 								$p->set_attribute( 'width', (string) round( $h * $size[0] / $size[1] ) );
+								$p->set_attribute( 'data-greenlight-size', 'width' );
 							}
+							$n_shape++;
 							$n_dims++;
 						}
 					}
@@ -119,6 +128,11 @@ class Lazy {
 		$report['dimensions'] = $n_dims;
 		$report['srcset']     = $n_srcset;
 		$html = $head . $p->get_updated_html();
+		if ( $n_shape ) {
+			// Zero specificity: any width/height the theme's CSS sets wins; otherwise an added side stays "auto", so the
+			// image shows exactly as it did before. The attributes still give the browser the aspect ratio.
+			$html = Html::before_head_end( $html, '<style id="greenlight-size">:where(img[data-greenlight-size~="width"]){width:auto}:where(img[data-greenlight-size~="height"]){height:auto}</style>' );
+		}
 		if ( $n_iframes ) {
 			$report['embeds on interaction'] = $n_iframes;
 			$html = Html::before_body_end( $html, '<script id="greenlight-iframes">(function(){var ev=["keydown","mousedown","mousemove","touchstart","wheel","scroll","pointerdown"],done=false;function go(){if(done)return;done=true;ev.forEach(function(e){removeEventListener(e,go,{passive:true});});document.querySelectorAll("iframe[data-greenlight-iframe]").forEach(function(f){f.src=f.getAttribute("data-greenlight-iframe");f.removeAttribute("data-greenlight-iframe");});}ev.forEach(function(e){addEventListener(e,go,{passive:true});});})();</script>' );

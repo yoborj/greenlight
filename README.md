@@ -53,6 +53,9 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 
 - Only plain front-end HTML pages are touched: never wp-admin, AJAX, REST, feeds, previews or the
   Customizer. Any error while optimizing serves the page unchanged.
+- Image sizes Greenlight adds (width/height the theme left out) only tell the browser the image's
+  shape. They never change how big an image shows, so a logo the theme sizes by height alone can't be
+  stretched; the theme's CSS always decides the size.
 - `?greenlight=off` on any URL shows the page with Greenlight fully off, for before/after checks.
 - The end of every page's source has a summary, e.g.
   `<!-- Greenlight 0.1.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4 … -->`.

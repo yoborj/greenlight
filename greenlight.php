@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Greenlight
  * Description:       Front-end speed fixes that move Core Web Vitals: hero image priority, self-hosted fonts, delayed third-party scripts, smarter lazy-loading, WordPress cleanup and host cache purging. No page cache: managed hosts like WP Engine already cache pages.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GREENLIGHT_VERSION', '0.1.0' );
+define( 'GREENLIGHT_VERSION', '0.1.1' );
 define( 'GREENLIGHT_FILE', __FILE__ );
 define( 'GREENLIGHT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GREENLIGHT_URL', plugin_dir_url( __FILE__ ) );
