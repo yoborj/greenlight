@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -11,12 +11,12 @@ defined( 'ABSPATH' ) || exit;
  * is what gave HFW its desktop layout shift (0.10–0.15; 0 after self-hosting + preloading).
  *
  * The first time a page uses a Google Fonts stylesheet, a background job downloads the CSS and the
- * woff2 files into uploads/speed-kit/fonts/<hash>/. From then on pages link the local copy, preload
+ * woff2 files into uploads/greenlight/fonts/<hash>/. From then on pages link the local copy, preload
  * the Latin files, and drop the connections to Google. Nobody waits for the download.
  */
 class Fonts {
 
-	const HOOK = 'speedkit_build_fonts';
+	const HOOK = 'greenlight_build_fonts';
 	const UA   = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0 Safari/537.36';
 
 	public static function init() {
@@ -26,8 +26,8 @@ class Fonts {
 	public static function dir( $key = '' ) {
 		$u = wp_get_upload_dir();
 		return array(
-			'path' => trailingslashit( $u['basedir'] ) . 'speed-kit/fonts/' . $key,
-			'url'  => trailingslashit( $u['baseurl'] ) . 'speed-kit/fonts/' . $key,
+			'path' => trailingslashit( $u['basedir'] ) . 'greenlight/fonts/' . $key,
+			'url'  => trailingslashit( $u['baseurl'] ) . 'greenlight/fonts/' . $key,
 		);
 	}
 
@@ -57,7 +57,7 @@ class Fonts {
 				$report['fonts'] = 'building';
 				continue;
 			}
-			$local = '<link rel="stylesheet" id="speedkit-fonts-' . $key . '" href="' . esc_url( $d['url'] . '/fonts.css?v=' . $meta['built'] ) . '" media="all">';
+			$local = '<link rel="stylesheet" id="greenlight-fonts-' . $key . '" href="' . esc_url( $d['url'] . '/fonts.css?v=' . $meta['built'] ) . '" media="all">';
 			$html  = str_replace( $tag, $local, $html );
 			foreach ( (array) ( $meta['preload'] ?? array() ) as $file ) {
 				$preloads[] = $d['url'] . '/' . $file;
@@ -131,9 +131,9 @@ class Fonts {
 		if ( ! $files ) {
 			return;
 		}
-		file_put_contents( $d['path'] . '/fonts.css', "/* Self-hosted by Speed Kit from {$href} */\n" . $css );
+		file_put_contents( $d['path'] . '/fonts.css', "/* Self-hosted by Greenlight from {$href} */\n" . $css );
 		file_put_contents( $d['path'] . '/meta.json', wp_json_encode( array( 'href' => $href, 'built' => time(), 'files' => array_keys( $files ), 'preload' => array_keys( $preload ) ) ) );
-		do_action( 'speedkit_purge_all', 'fonts built' );
+		do_action( 'greenlight_purge_all', 'fonts built' );
 	}
 
 	/** Delete every local font copy (they rebuild on the next page view). */

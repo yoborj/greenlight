@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -27,7 +27,7 @@ class Defer {
 		foreach ( $scripts->queue as $handle ) {
 			self::mark_one( $scripts, $handle, $keep, $count );
 		}
-		$GLOBALS['speedkit_deferred'] = $count;
+		$GLOBALS['greenlight_deferred'] = $count;
 		if ( Settings::get( 'jquery_footer' ) ) {
 			self::jquery_to_footer( $scripts );
 		}
@@ -65,7 +65,7 @@ class Defer {
 				$moved[] = $h;
 			}
 		}
-		$GLOBALS['speedkit_jquery_moved'] = $moved;
+		$GLOBALS['greenlight_jquery_moved'] = $moved;
 	}
 
 	/**
@@ -73,7 +73,7 @@ class Defer {
 	 * jQuery in the finished page, put the moved scripts back at the end of <head> (as before).
 	 */
 	public static function verify_jquery( $html, array &$report ) {
-		$moved = $GLOBALS['speedkit_jquery_moved'] ?? array();
+		$moved = $GLOBALS['greenlight_jquery_moved'] ?? array();
 		if ( ! $moved || false === ( $jq = strpos( $html, "id='jquery-core-js'" ) ?: strpos( $html, 'id="jquery-core-js"' ) ) ) {
 			return $html;
 		}

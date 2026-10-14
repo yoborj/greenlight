@@ -1,16 +1,16 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Clears the host's page caches when content changes. Speed Kit has no page cache of its own:
+ * Clears the host's page caches when content changes. Greenlight has no page cache of its own:
  * WP Engine (and Kinsta, SiteGround, Flywheel, Pantheon…) already cache pages at the server.
  */
 class Purge {
 
 	public static function init() {
-		add_action( 'speedkit_purge_all', array( __CLASS__, 'all' ) );
+		add_action( 'greenlight_purge_all', array( __CLASS__, 'all' ) );
 		if ( ! Settings::get( 'purge_on_save' ) ) {
 			return;
 		}
@@ -70,7 +70,7 @@ class Purge {
 			rocket_clean_domain();
 			$done[] = 'WP Rocket';
 		}
-		do_action( 'speedkit_purged', $done, $why );
+		do_action( 'greenlight_purged', $done, $why );
 		return $done;
 	}
 

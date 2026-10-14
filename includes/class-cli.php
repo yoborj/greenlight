@@ -1,10 +1,10 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * WP-CLI: wp speedkit status | purge | fonts [--clear] | set <key> <value>
+ * WP-CLI: wp greenlight status | purge | fonts [--clear] | set <key> <value>
  */
 class CLI {
 
@@ -13,8 +13,8 @@ class CLI {
 	 */
 	public function status() {
 		$s = Settings::all();
-		\WP_CLI::line( 'Speed Kit ' . SPEEDKIT_VERSION . ( $s['enabled'] ? ' — on' : ' — OFF' ) );
-		\WP_CLI::line( 'Host page cache: ' . ( Purge::host() ?: 'none detected (Speed Kit has no page cache of its own)' ) );
+		\WP_CLI::line( 'Greenlight ' . GREENLIGHT_VERSION . ( $s['enabled'] ? ' — on' : ' — OFF' ) );
+		\WP_CLI::line( 'Host page cache: ' . ( Purge::host() ?: 'none detected (Greenlight has no page cache of its own)' ) );
 		$fonts = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
 		\WP_CLI::line( 'Self-hosted font sets: ' . count( $fonts ) );
 		foreach ( $s as $k => $v ) {
@@ -57,7 +57,7 @@ class CLI {
 	 * Change one setting.
 	 *
 	 * <key>
-	 * : Setting name (see `wp speedkit status`).
+	 * : Setting name (see `wp greenlight status`).
 	 *
 	 * <value>
 	 * : New value (1/0 for switches).

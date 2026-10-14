@@ -1,14 +1,14 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Settings with safe defaults. Stored in one option, `speedkit_settings`.
+ * Settings with safe defaults. Stored in one option, `greenlight_settings`.
  */
 class Settings {
 
-	const OPTION = 'speedkit_settings';
+	const OPTION = 'greenlight_settings';
 
 	public static function defaults() {
 		return array(

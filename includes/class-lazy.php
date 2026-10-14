@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,6 +23,7 @@ class Lazy {
 		$dims    = (bool) Settings::get( 'dimensions' );
 		$iframes = (bool) Settings::get( 'lazy_iframes' );
 		$index   = 0;
+		$past_hero = false; // Images after the hero are below the first screen: always lazy.
 		$n_lazy  = 0;
 		$n_dims  = 0;
 		$n_srcset   = 0;
@@ -32,20 +33,26 @@ class Lazy {
 
 		while ( $p->next_tag() ) {
 			$tag = $p->get_tag();
+			if ( 'IMG' !== $tag && $p->get_attribute( 'data-greenlight-lcp' ) ) {
+				$past_hero = true; // A CSS-background hero.
+			}
 			if ( 'IMG' === $tag ) {
 				$src = $p->get_attribute( 'src' );
 				if ( ! is_string( $src ) || '' === $src || 0 === strpos( $src, 'data:' ) ) {
 					continue; // Placeholder from another lazy-loader: leave it to that plugin.
 				}
 				$index++;
-				$is_hero = $p->get_attribute( 'data-speedkit-lcp' ) || 'high' === $p->get_attribute( 'fetchpriority' );
-				if ( $is_hero || $index <= $eager ) {
+				$is_hero = $p->get_attribute( 'data-greenlight-lcp' ) || 'high' === $p->get_attribute( 'fetchpriority' );
+				if ( $is_hero || ( ! $past_hero && $index <= $eager ) ) {
 					if ( 'lazy' === $p->get_attribute( 'loading' ) ) {
 						$p->remove_attribute( 'loading' );
 					}
 				} elseif ( null === $p->get_attribute( 'loading' ) ) {
 					$p->set_attribute( 'loading', 'lazy' );
 					$n_lazy++;
+				}
+				if ( $is_hero ) {
+					$past_hero = true;
 				}
 				if ( null === $p->get_attribute( 'decoding' ) && ! $is_hero ) {
 					$p->set_attribute( 'decoding', 'async' );
@@ -84,7 +91,7 @@ class Lazy {
 				$isrc = (string) $p->get_attribute( 'src' );
 				if ( $delay_iframes && '' !== $isrc && Html::matches_any( $isrc, $delay_iframes ) ) {
 					// Load on the first interaction (like third-party scripts): maps alone are ~450 KB.
-					$p->set_attribute( 'data-speedkit-iframe', $isrc );
+					$p->set_attribute( 'data-greenlight-iframe', $isrc );
 					$p->remove_attribute( 'src' );
 					$n_iframes++;
 					continue;
@@ -101,7 +108,7 @@ class Lazy {
 		$html = $head . $p->get_updated_html();
 		if ( $n_iframes ) {
 			$report['embeds on interaction'] = $n_iframes;
-			$html = Html::before_body_end( $html, '<script id="speedkit-iframes">(function(){var ev=["keydown","mousedown","mousemove","touchstart","wheel","scroll","pointerdown"],done=false;function go(){if(done)return;done=true;ev.forEach(function(e){removeEventListener(e,go,{passive:true});});document.querySelectorAll("iframe[data-speedkit-iframe]").forEach(function(f){f.src=f.getAttribute("data-speedkit-iframe");f.removeAttribute("data-speedkit-iframe");});}ev.forEach(function(e){addEventListener(e,go,{passive:true});});})();</script>' );
+			$html = Html::before_body_end( $html, '<script id="greenlight-iframes">(function(){var ev=["keydown","mousedown","mousemove","touchstart","wheel","scroll","pointerdown"],done=false;function go(){if(done)return;done=true;ev.forEach(function(e){removeEventListener(e,go,{passive:true});});document.querySelectorAll("iframe[data-greenlight-iframe]").forEach(function(f){f.src=f.getAttribute("data-greenlight-iframe");f.removeAttribute("data-greenlight-iframe");});}ev.forEach(function(e){addEventListener(e,go,{passive:true});});})();</script>' );
 		}
 		return $html;
 	}
@@ -120,7 +127,7 @@ class Lazy {
 				$h   = preg_match( '/\sheight=["\']?(\d+)/i', $tag, $hm ) ? (int) $hm[1] : 9;
 				$title = preg_match( '/\stitle=(["\'])(.*?)\1/i', $tag, $tm ) ? $tm[2] : 'YouTube video';
 				$count++;
-				return '<div class="speedkit-yt" style="aspect-ratio:' . $w . '/' . $h . '" data-src="' . esc_url( $src ) . '" data-title="' . esc_attr( $title ) . '">'
+				return '<div class="greenlight-yt" style="aspect-ratio:' . $w . '/' . $h . '" data-src="' . esc_url( $src ) . '" data-title="' . esc_attr( $title ) . '">'
 					. '<img src="https://i.ytimg.com/vi/' . esc_attr( $id ) . '/hqdefault.jpg" alt="" loading="lazy" decoding="async" width="480" height="360">'
 					. '<button type="button" aria-label="' . esc_attr( 'Play video: ' . wp_strip_all_tags( $title ) ) . '"></button></div>';
 			},
@@ -128,8 +135,8 @@ class Lazy {
 		);
 		if ( $count ) {
 			$report['youtube'] = $count;
-			$css  = '<style id="speedkit-yt">.speedkit-yt{position:relative;width:100%;max-width:100%;background:#000;overflow:hidden;cursor:pointer}.speedkit-yt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.speedkit-yt button{position:absolute;inset:0;margin:auto;width:68px;height:48px;border:0;border-radius:14px;background:rgba(23,23,23,.8);cursor:pointer}.speedkit-yt button::before{content:"";position:absolute;left:27px;top:14px;border-style:solid;border-width:10px 0 10px 17px;border-color:transparent transparent transparent #fff}.speedkit-yt:hover button,.speedkit-yt button:focus-visible{background:#f00}.speedkit-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style>';
-			$js   = '<script id="speedkit-yt-js">document.addEventListener("click",function(e){var b=e.target.closest(".speedkit-yt");if(!b||b.querySelector("iframe"))return;var f=document.createElement("iframe");f.src=b.dataset.src;f.title=b.dataset.title||"YouTube video";f.allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture";f.allowFullscreen=true;b.appendChild(f);});</script>';
+			$css  = '<style id="greenlight-yt">.greenlight-yt{position:relative;width:100%;max-width:100%;background:#000;overflow:hidden;cursor:pointer}.greenlight-yt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.greenlight-yt button{position:absolute;inset:0;margin:auto;width:68px;height:48px;border:0;border-radius:14px;background:rgba(23,23,23,.8);cursor:pointer}.greenlight-yt button::before{content:"";position:absolute;left:27px;top:14px;border-style:solid;border-width:10px 0 10px 17px;border-color:transparent transparent transparent #fff}.greenlight-yt:hover button,.greenlight-yt button:focus-visible{background:#f00}.greenlight-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style>';
+			$js   = '<script id="greenlight-yt-js">document.addEventListener("click",function(e){var b=e.target.closest(".greenlight-yt");if(!b||b.querySelector("iframe"))return;var f=document.createElement("iframe");f.src=b.dataset.src;f.title=b.dataset.title||"YouTube video";f.allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture";f.allowFullscreen=true;b.appendChild(f);});</script>';
 			$html = Html::before_head_end( $html, $css );
 			$html = Html::before_body_end( $html, $js );
 		}

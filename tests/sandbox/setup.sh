@@ -1,6 +1,6 @@
 #!/bin/bash
 # Throwaway WordPress (SQLite + PHP's built-in server) with a deliberately slow test theme, for
-# testing Speed Kit without touching a real site. Usage:
+# testing Greenlight without touching a real site. Usage:
 #   PHP=/path/to/php tests/sandbox/setup.sh [dir]     then     tests/sandbox/serve.sh [dir]
 # Needs: PHP 8 with pdo_sqlite + gd, curl, unzip, python3 with Pillow (for test images).
 set -e
@@ -30,12 +30,12 @@ cat > wp <<WP
 exec "$PHP" -d memory_limit=512M "$DIR/dl/wp-cli.phar" --path="$DIR/wordpress" "\$@"
 WP
 chmod +x wp
-./wp core install --url="http://127.0.0.1:$PORT" --title="Speed Kit Sandbox" --admin_user=sandbox --admin_password="$(openssl rand -hex 12)" --admin_email=sandbox@example.com --skip-email
+./wp core install --url="http://127.0.0.1:$PORT" --title="Greenlight Sandbox" --admin_user=sandbox --admin_password="$(openssl rand -hex 12)" --admin_email=sandbox@example.com --skip-email
 ./wp rewrite structure '/%postname%/'
-cp -R "$HERE/speedkit-test" wordpress/wp-content/themes/ && ./wp theme activate speedkit-test
+cp -R "$HERE/greenlight-test" wordpress/wp-content/themes/ && ./wp theme activate greenlight-test
 python3 "$HERE/make-images.py" img
 ./wp option update sandbox_hero_url "$(./wp post get "$(./wp media import img/hero-original.jpg --porcelain)" --field=guid)"
 for f in img/work-*.jpg; do ./wp media import "$f" >/dev/null; done
 ./wp option update sandbox_grid_urls "$(./wp post list --post_type=attachment --fields=guid --format=csv | grep work- | sort | python3 -c 'import sys,json;print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')" --format=json
-ln -sfn "$PLUGIN" wordpress/wp-content/plugins/speed-kit && ./wp plugin activate speed-kit
+ln -sfn "$PLUGIN" wordpress/wp-content/plugins/greenlight && ./wp plugin activate greenlight
 echo "Sandbox ready in $DIR. Start it: PHP=$PHP $HERE/serve.sh $DIR"

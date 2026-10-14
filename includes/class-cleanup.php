@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -14,7 +14,7 @@ class Cleanup {
 
 	public static function run() {
 		$s = Settings::all();
-		if ( empty( $s['enabled'] ) || ( ! is_admin() && isset( $_GET['speedkit'] ) && 'off' === $_GET['speedkit'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( empty( $s['enabled'] ) || ( ! is_admin() && isset( $_GET['greenlight'] ) && 'off' === $_GET['greenlight'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return;
 		}
 

@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -61,7 +61,7 @@ class Lcp {
 				}
 				$p->remove_attribute( 'loading' );
 				$p->set_attribute( 'fetchpriority', 'high' );
-				$p->set_attribute( 'data-speedkit-lcp', '1' );
+				$p->set_attribute( 'data-greenlight-lcp', '1' );
 				$srcset = $p->get_attribute( 'srcset' );
 				$sizes  = $p->get_attribute( 'sizes' );
 				$links .= '<link rel="preload" as="image" href="' . esc_url( $src ) . '"' . ( $srcset ? ' imagesrcset="' . esc_attr( $srcset ) . '"' . ( $sizes ? ' imagesizes="' . esc_attr( $sizes ) . '"' : '' ) : '' ) . ' fetchpriority="high">' . "\n";
@@ -78,7 +78,7 @@ class Lcp {
 					continue;
 				}
 				// Other lazy-loaders keep backgrounds in data-bg; nothing to undo for inline styles.
-				$p->set_attribute( 'data-speedkit-lcp', '1' );
+				$p->set_attribute( 'data-greenlight-lcp', '1' );
 				$phone   = Settings::get( 'lcp_phone_copy' ) ? Html::phone_copy( $url ) : null;
 				$desktop = Settings::get( 'lcp_phone_copy' ) ? Html::desktop_copy( $url ) : null;
 				if ( $desktop ) {
@@ -94,10 +94,10 @@ class Lcp {
 				}
 				$p->set_attribute( 'style', $style );
 				if ( $phone ) {
-					$p->set_attribute( 'style', rtrim( $style, "; \t" ) . ";--speedkit-phone-bg:url('" . esc_url( $phone ) . "')" );
+					$p->set_attribute( 'style', rtrim( $style, "; \t" ) . ";--greenlight-phone-bg:url('" . esc_url( $phone ) . "')" );
 					$links  .= '<link rel="preload" as="image" href="' . esc_url( $phone ) . '" media="(max-width: 767px)" fetchpriority="high">' . "\n";
 					$links  .= '<link rel="preload" as="image" href="' . esc_url( $url ) . '" media="(min-width: 768px)" fetchpriority="high">' . "\n";
-					$styles .= '@media (max-width:767px){[data-speedkit-lcp][style*="--speedkit-phone-bg"]{background-image:var(--speedkit-phone-bg)!important}}';
+					$styles .= '@media (max-width:767px){[data-greenlight-lcp][style*="--greenlight-phone-bg"]{background-image:var(--greenlight-phone-bg)!important}}';
 				} else {
 					$links .= '<link rel="preload" as="image" href="' . esc_url( $url ) . '" fetchpriority="high">' . "\n";
 				}
@@ -112,7 +112,7 @@ class Lcp {
 		}
 		$html = $head . $p->get_updated_html();
 		if ( $styles ) {
-			$links .= '<style id="speedkit-lcp">' . $styles . '</style>' . "\n";
+			$links .= '<style id="greenlight-lcp">' . $styles . '</style>' . "\n";
 		}
 		$report['lcp'] = $found . ' ' . wp_basename( strtok( self::$url, '?' ) );
 		return Html::after_head_start( $html, $links );

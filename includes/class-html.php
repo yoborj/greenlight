@@ -1,5 +1,5 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -91,8 +91,8 @@ class Html {
 		}
 		$size = null;
 		if ( self::is_upload( $url ) && $lookups < 30 ) {
-			$key   = 'speedkit_isz_' . md5( $url );
-			$cache = wp_cache_get( $key, 'speedkit' );
+			$key   = 'greenlight_isz_' . md5( $url );
+			$cache = wp_cache_get( $key, 'greenlight' );
 			if ( false !== $cache ) {
 				return $seen[ $url ] = $cache ?: null;
 			}
@@ -102,7 +102,7 @@ class Html {
 			if ( ! empty( $meta['width'] ) && ! empty( $meta['height'] ) ) {
 				$size = array( (int) $meta['width'], (int) $meta['height'] );
 			}
-			wp_cache_set( $key, $size ?: 0, 'speedkit', DAY_IN_SECONDS );
+			wp_cache_set( $key, $size ?: 0, 'greenlight', DAY_IN_SECONDS );
 		}
 		return $seen[ $url ] = $size;
 	}
@@ -168,8 +168,8 @@ class Html {
 		if ( is_readable( $path . '.webp' ) ) {
 			return strtok( $url, '?' ) . '.webp';
 		}
-		if ( ! wp_next_scheduled( 'speedkit_make_webp', array( $path ) ) ) {
-			wp_schedule_single_event( time(), 'speedkit_make_webp', array( $path ) );
+		if ( ! wp_next_scheduled( 'greenlight_make_webp', array( $path ) ) ) {
+			wp_schedule_single_event( time(), 'greenlight_make_webp', array( $path ) );
 		}
 		return $url;
 	}
@@ -194,7 +194,7 @@ class Html {
 		}
 		if ( filesize( $saved['path'] ) < filesize( $path ) ) {
 			rename( $saved['path'], $path . '.webp' );
-			do_action( 'speedkit_purge_all', 'webp made' );
+			do_action( 'greenlight_purge_all', 'webp made' );
 		} else {
 			unlink( $saved['path'] );
 		}

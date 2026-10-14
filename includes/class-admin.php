@@ -1,10 +1,10 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Settings → Speed Kit, the "Clear caches" toolbar button, and conflict notices.
+ * Settings → Greenlight, the "Clear caches" toolbar button, and conflict notices.
  */
 class Admin {
 
@@ -12,21 +12,21 @@ class Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
 		add_action( 'admin_bar_menu', array( __CLASS__, 'toolbar' ), 100 );
-		add_action( 'admin_post_speedkit_purge', array( __CLASS__, 'handle_purge' ) );
-		add_action( 'admin_post_speedkit_fonts_clear', array( __CLASS__, 'handle_fonts_clear' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( SPEEDKIT_FILE ), array( __CLASS__, 'action_links' ) );
+		add_action( 'admin_post_greenlight_purge', array( __CLASS__, 'handle_purge' ) );
+		add_action( 'admin_post_greenlight_fonts_clear', array( __CLASS__, 'handle_fonts_clear' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( GREENLIGHT_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
 	public static function menu() {
-		add_options_page( 'Speed Kit', 'Speed Kit', 'manage_options', 'speed-kit', array( __CLASS__, 'page' ) );
+		add_options_page( 'Greenlight', 'Greenlight', 'manage_options', 'greenlight', array( __CLASS__, 'page' ) );
 	}
 
 	public static function register() {
-		register_setting( 'speedkit', Settings::OPTION, array( 'sanitize_callback' => array( 'SpeedKit\\Settings', 'sanitize' ) ) );
+		register_setting( 'greenlight', Settings::OPTION, array( 'sanitize_callback' => array( 'Greenlight\\Settings', 'sanitize' ) ) );
 	}
 
 	public static function action_links( $links ) {
-		array_unshift( $links, '<a href="' . esc_url( admin_url( 'options-general.php?page=speed-kit' ) ) . '">Settings</a>' );
+		array_unshift( $links, '<a href="' . esc_url( admin_url( 'options-general.php?page=greenlight' ) ) . '">Settings</a>' );
 		return $links;
 	}
 
@@ -35,31 +35,31 @@ class Admin {
 			return;
 		}
 		$bar->add_node( array(
-			'id'    => 'speedkit-purge',
+			'id'    => 'greenlight-purge',
 			'title' => 'Clear caches',
-			'href'  => wp_nonce_url( admin_url( 'admin-post.php?action=speedkit_purge' ), 'speedkit_purge' ),
-			'meta'  => array( 'title' => 'Speed Kit: clear the host page cache and the object cache' ),
+			'href'  => wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_purge' ), 'greenlight_purge' ),
+			'meta'  => array( 'title' => 'Greenlight: clear the host page cache and the object cache' ),
 		) );
 	}
 
 	public static function handle_purge() {
-		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'speedkit_purge' ) ) {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_purge' ) ) {
 			wp_die( 'Not allowed.' );
 		}
 		$done = Purge::all( 'toolbar' );
-		set_transient( 'speedkit_notice_' . get_current_user_id(), 'Caches cleared: ' . implode( ', ', $done ) . '.', 60 );
+		set_transient( 'greenlight_notice_' . get_current_user_id(), 'Caches cleared: ' . implode( ', ', $done ) . '.', 60 );
 		wp_safe_redirect( wp_get_referer() ?: admin_url() );
 		exit;
 	}
 
 	public static function handle_fonts_clear() {
-		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'speedkit_fonts_clear' ) ) {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_fonts_clear' ) ) {
 			wp_die( 'Not allowed.' );
 		}
 		$n = Fonts::clear();
 		Purge::all( 'fonts cleared' );
-		set_transient( 'speedkit_notice_' . get_current_user_id(), "Removed {$n} self-hosted font set(s). They rebuild on the next page view.", 60 );
-		wp_safe_redirect( admin_url( 'options-general.php?page=speed-kit' ) );
+		set_transient( 'greenlight_notice_' . get_current_user_id(), "Removed {$n} self-hosted font set(s). They rebuild on the next page view.", 60 );
+		wp_safe_redirect( admin_url( 'options-general.php?page=greenlight' ) );
 		exit;
 	}
 
@@ -67,7 +67,7 @@ class Admin {
 	private static function conflicts() {
 		$found = array();
 		$map   = array(
-			'WP Rocket'       => array( 'defined', 'WP_ROCKET_VERSION', 'turn off its Lazyload, Delay JavaScript and Remove Unused CSS, or Speed Kit\'s equivalents' ),
+			'WP Rocket'       => array( 'defined', 'WP_ROCKET_VERSION', 'turn off its Lazyload, Delay JavaScript and Remove Unused CSS, or Greenlight\'s equivalents' ),
 			'Autoptimize'     => array( 'defined', 'AUTOPTIMIZE_PLUGIN_VERSION', 'turn off its lazy-load and Google Fonts options' ),
 			'Perfmatters'     => array( 'defined', 'PERFMATTERS_VERSION', 'pick one plugin for delay, lazy-load, fonts and cleanup' ),
 			'LiteSpeed Cache' => array( 'defined', 'LSCWP_V', 'turn off its image lazy-load, font and JS delay options' ),
@@ -86,7 +86,7 @@ class Admin {
 	private static function fields() {
 		return array(
 			'General'           => array(
-				'enabled' => array( 'check', 'Speed Kit is on', 'Turn off to serve pages untouched (cleanup and cache clearing also stop). Add ?speedkit=off to any URL to compare one page.' ),
+				'enabled' => array( 'check', 'Greenlight is on', 'Turn off to serve pages untouched (cleanup and cache clearing also stop). Add ?greenlight=off to any URL to compare one page.' ),
 			),
 			'Hero image (LCP)'  => array(
 				'lcp'            => array( 'check', 'Prioritise the hero image', 'Finds the first big image (an <img> or a CSS background) and loads it first: no lazy-loading, fetchpriority="high", preloaded in <head>.' ),
@@ -138,32 +138,32 @@ class Admin {
 			return;
 		}
 		$s      = Settings::all();
-		$notice = get_transient( 'speedkit_notice_' . get_current_user_id() );
+		$notice = get_transient( 'greenlight_notice_' . get_current_user_id() );
 		if ( $notice ) {
-			delete_transient( 'speedkit_notice_' . get_current_user_id() );
+			delete_transient( 'greenlight_notice_' . get_current_user_id() );
 		}
 		$host   = Purge::host();
 		$fonts  = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
 		?>
-		<div class="wrap speedkit">
-			<h1>Speed Kit</h1>
+		<div class="wrap greenlight">
+			<h1>Greenlight</h1>
 			<?php if ( $notice ) : ?><div class="notice notice-success"><p><?php echo esc_html( $notice ); ?></p></div><?php endif; ?>
 			<?php foreach ( self::conflicts() as $name => $advice ) : ?>
-				<div class="notice notice-warning"><p><strong><?php echo esc_html( $name ); ?> is active.</strong> It overlaps with Speed Kit: <?php echo esc_html( $advice ); ?>.</p></div>
+				<div class="notice notice-warning"><p><strong><?php echo esc_html( $name ); ?> is active.</strong> It overlaps with Greenlight: <?php echo esc_html( $advice ); ?>.</p></div>
 			<?php endforeach; ?>
 			<p>
-				<strong>Page cache:</strong> <?php echo $host ? esc_html( $host . ' caches pages at the server; Speed Kit clears it when content changes.' ) : 'no host page cache detected. Speed Kit has no page cache of its own; use your host\'s or a caching plugin.'; ?>
+				<strong>Page cache:</strong> <?php echo $host ? esc_html( $host . ' caches pages at the server; Greenlight clears it when content changes.' ) : 'no host page cache detected. Greenlight has no page cache of its own; use your host\'s or a caching plugin.'; ?>
 				&nbsp;·&nbsp; <strong>Self-hosted font sets:</strong> <?php echo (int) count( $fonts ); ?>
-				&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=speedkit_purge' ), 'speedkit_purge' ) ); ?>">Clear caches</a>
-				<?php if ( $fonts ) : ?>&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=speedkit_fonts_clear' ), 'speedkit_fonts_clear' ) ); ?>">Re-download fonts</a><?php endif; ?>
+				&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_purge' ), 'greenlight_purge' ) ); ?>">Clear caches</a>
+				<?php if ( $fonts ) : ?>&nbsp;·&nbsp; <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_fonts_clear' ), 'greenlight_fonts_clear' ) ); ?>">Re-download fonts</a><?php endif; ?>
 			</p>
-			<p class="description">Check a page with and without Speed Kit: open it with <code>?speedkit=off</code> added to the URL, and look for the <code>&lt;!-- Speed Kit … --&gt;</code> line at the end of the page source.</p>
+			<p class="description">Check a page with and without Greenlight: open it with <code>?greenlight=off</code> added to the URL, and look for the <code>&lt;!-- Greenlight … --&gt;</code> line at the end of the page source.</p>
 			<form method="post" action="options.php">
-				<?php settings_fields( 'speedkit' ); ?>
+				<?php settings_fields( 'greenlight' ); ?>
 				<?php foreach ( self::fields() as $section => $fields ) : ?>
 					<h2><?php echo esc_html( $section ); ?></h2>
 					<table class="form-table" role="presentation">
-						<?php foreach ( $fields as $key => $f ) : $name = Settings::OPTION . '[' . $key . ']'; $id = 'speedkit-' . $key; ?>
+						<?php foreach ( $fields as $key => $f ) : $name = Settings::OPTION . '[' . $key . ']'; $id = 'greenlight-' . $key; ?>
 							<tr>
 								<th scope="row"><label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $f[1] ); ?></label></th>
 								<td>

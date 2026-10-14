@@ -1,11 +1,11 @@
 <?php
-namespace SpeedKit;
+namespace Greenlight;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Runs the HTML optimizations on each front-end page through one output buffer.
- * Add ?speedkit=off to any URL to see the page without them (useful for before/after checks).
+ * Add ?greenlight=off to any URL to see the page without them (useful for before/after checks).
  */
 class Optimizer {
 
@@ -17,13 +17,13 @@ class Optimizer {
 		if ( ! Settings::get( 'enabled' ) || is_admin() || wp_doing_ajax() || wp_doing_cron() || is_feed() || is_embed() || is_preview() || is_customize_preview() ) {
 			return false;
 		}
-		if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DONOTSPEEDKIT' ) && DONOTSPEEDKIT ) ) {
+		if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DONOTGREENLIGHT' ) && DONOTGREENLIGHT ) ) {
 			return false;
 		}
-		if ( 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) || ( isset( $_GET['speedkit'] ) && 'off' === $_GET['speedkit'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) || ( isset( $_GET['greenlight'] ) && 'off' === $_GET['greenlight'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return false;
 		}
-		return (bool) apply_filters( 'speedkit_should_optimize', true );
+		return (bool) apply_filters( 'greenlight_should_optimize', true );
 	}
 
 	public static function start() {
@@ -70,7 +70,7 @@ class Optimizer {
 		foreach ( $report as $k => $v ) {
 			$summary[] = $k . ': ' . $v;
 		}
-		return $out . "\n<!-- Speed Kit " . SPEEDKIT_VERSION . ' (' . round( ( microtime( true ) - $t0 ) * 1000 ) . ' ms): ' . esc_html( implode( ', ', $summary ) ?: 'nothing to change' ) . ' -->';
+		return $out . "\n<!-- Greenlight " . GREENLIGHT_VERSION . ' (' . round( ( microtime( true ) - $t0 ) * 1000 ) . ' ms): ' . esc_html( implode( ', ', $summary ) ?: 'nothing to change' ) . ' -->';
 	}
 
 	/**
