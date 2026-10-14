@@ -38,7 +38,7 @@ class Settings {
 
 			// Third-party scripts.
 			'delay'              => 1,
-			'delay_timeout'      => 0,
+			'delay_timeout'      => 10, // Also load them after 10 s, so analytics counts visitors who never interact.
 			'delay_patterns'     => implode( "\n", self::default_delay_patterns() ),
 			'delay_exclusions'   => implode( "\n", self::default_delay_exclusions() ),
 			'defer_head'         => 1,
@@ -161,61 +161,89 @@ class Settings {
 	}
 
 	/** A readable name for a list entry, when it's one we know. */
+	/** Known services and the patterns that belong to each, so the settings page shows one row per service. */
+	const SERVICES = array(
+		'Google Analytics / Ads (gtag.js)' => array( 'googletagmanager.com/gtag/js', "gtag('config'", 'gtag("config"' ),
+		'Google Tag Manager'               => array( 'googletagmanager.com/gtm.js', 'gtm.start' ),
+		'Universal Analytics (old)'        => array( 'google-analytics.com/analytics.js' ),
+		'Meta (Facebook) Pixel'            => array( 'connect.facebook.net', "fbq('init'", 'fbq("init"' ),
+		'Hotjar'                           => array( 'static.hotjar.com', 'script.hotjar.com', 'hotjar.com/c/hotjar-' ),
+		'Microsoft Clarity'                => array( 'clarity.ms', 'clarity.ms/tag' ),
+		'LinkedIn Insight Tag'             => array( 'snap.licdn.com', '_linkedin_partner_id' ),
+		'TikTok Pixel'                     => array( 'analytics.tiktok.com', 'ttq.load' ),
+		'HubSpot tracking'                 => array( 'js.hs-scripts.com', 'js.hs-analytics.net' ),
+		'HubSpot cookie banner'            => array( 'js.hs-banner.com' ),
+		'Microsoft Ads (Bing UET)'         => array( 'bat.bing.com' ),
+		'Tawk.to chat'                     => array( 'embed.tawk.to' ),
+		'Intercom chat'                    => array( 'widget.intercom.io', 'js.intercomcdn.com' ),
+		'Drift chat'                       => array( 'js.driftt.com' ),
+		'Crisp chat'                       => array( 'client.crisp.chat' ),
+		'Zendesk chat'                     => array( 'static.zdassets.com' ),
+		'X (Twitter) embeds'               => array( 'platform.twitter.com' ),
+		'Pinterest'                        => array( 'assets.pinterest.com' ),
+		'UserWay accessibility widget'     => array( 'cdn.userway.org' ),
+		'Anything mentioning “consent”'    => array( 'consent' ),
+		'CookieYes'                        => array( 'cookieyes', 'cookie-law-info' ),
+		'Complianz'                        => array( 'complianz', 'cmplz' ),
+		'Cookiebot'                        => array( 'cookiebot' ),
+		'OneTrust'                         => array( 'onetrust' ),
+		'Termly'                           => array( 'termly' ),
+		'iubenda'                          => array( 'iubenda' ),
+		'Usercentrics'                     => array( 'usercentrics' ),
+		'CallTrackingMetrics'              => array( 'tctm.co', 'calltrackingmetrics' ),
+		'CallRail'                         => array( 'callrail' ),
+		'Google reCAPTCHA'                 => array( 'recaptcha' ),
+		'Cloudflare Turnstile'             => array( 'turnstile' ),
+		'Google Maps'                      => array( 'google.com/maps', 'maps.google.' ),
+		'Vimeo'                            => array( 'player.vimeo.com' ),
+		'Trustpilot'                       => array( 'widget.trustpilot.com' ),
+		'Calendly'                         => array( 'calendly.com' ),
+	);
+
+	/** The service a pattern belongs to, or null for a custom entry. */
 	public static function label( $value ) {
-		static $names = array(
-			'googletagmanager.com/gtag/js' => 'Google Analytics 4 / Google Ads (gtag.js)',
-			'googletagmanager.com/gtm.js'  => 'Google Tag Manager',
-			'google-analytics.com/analytics.js' => 'Universal Analytics (old)',
-			'connect.facebook.net'         => 'Meta (Facebook) Pixel',
-			'static.hotjar.com'            => 'Hotjar',
-			'script.hotjar.com'            => 'Hotjar (loader)',
-			'clarity.ms'                   => 'Microsoft Clarity',
-			'snap.licdn.com'               => 'LinkedIn Insight Tag',
-			'analytics.tiktok.com'         => 'TikTok Pixel',
-			'js.hs-scripts.com'            => 'HubSpot tracking',
-			'js.hs-analytics.net'          => 'HubSpot analytics',
-			'js.hs-banner.com'             => 'HubSpot cookie banner',
-			'bat.bing.com'                 => 'Microsoft Ads (Bing UET)',
-			'embed.tawk.to'                => 'Tawk.to chat',
-			'widget.intercom.io'           => 'Intercom chat',
-			'js.intercomcdn.com'           => 'Intercom chat (files)',
-			'js.driftt.com'                => 'Drift chat',
-			'client.crisp.chat'            => 'Crisp chat',
-			'static.zdassets.com'          => 'Zendesk chat',
-			'platform.twitter.com'         => 'X (Twitter) embeds',
-			'assets.pinterest.com'         => 'Pinterest',
-			'cdn.userway.org'              => 'UserWay accessibility widget',
-			'gtm.start'                    => 'Google Tag Manager (inline snippet)',
-			"gtag('config'"                => 'Google Analytics setup (inline)',
-			'gtag("config"'                => 'Google Analytics setup (inline)',
-			"fbq('init'"                   => 'Meta Pixel setup (inline)',
-			'fbq("init"'                   => 'Meta Pixel setup (inline)',
-			'_linkedin_partner_id'         => 'LinkedIn setup (inline)',
-			'ttq.load'                     => 'TikTok setup (inline)',
-			'clarity.ms/tag'               => 'Microsoft Clarity setup (inline)',
-			'hotjar.com/c/hotjar-'         => 'Hotjar setup (inline)',
-			'consent'                      => 'Anything that mentions "consent"',
-			'cookieyes'                    => 'CookieYes',
-			'cookie-law-info'              => 'CookieYes (GDPR Cookie Consent)',
-			'complianz'                    => 'Complianz',
-			'cmplz'                        => 'Complianz (scripts)',
-			'cookiebot'                    => 'Cookiebot',
-			'onetrust'                     => 'OneTrust',
-			'termly'                       => 'Termly',
-			'iubenda'                      => 'iubenda',
-			'usercentrics'                 => 'Usercentrics',
-			'tctm.co'                      => 'CallTrackingMetrics',
-			'calltrackingmetrics'          => 'CallTrackingMetrics',
-			'callrail'                     => 'CallRail',
-			'recaptcha'                    => 'Google reCAPTCHA',
-			'turnstile'                    => 'Cloudflare Turnstile',
-			'google.com/maps'              => 'Google Maps',
-			'maps.google.'                 => 'Google Maps (old embed)',
-			'player.vimeo.com'             => 'Vimeo',
-			'widget.trustpilot.com'        => 'Trustpilot',
-			'calendly.com'                 => 'Calendly',
-		);
+		static $names = null;
+		if ( null === $names ) {
+			$names = array();
+			foreach ( self::SERVICES as $name => $patterns ) {
+				foreach ( $patterns as $pattern ) {
+					$names[ $pattern ] = $name;
+				}
+			}
+		}
 		return $names[ $value ] ?? null;
+	}
+
+	/**
+	 * A list's entries grouped one row per service (custom entries are their own row).
+	 * Each group: label, values, indexes (into entries()), on (true if any of its patterns is on).
+	 */
+	public static function groups( $key ) {
+		$groups = array();
+		foreach ( self::entries( $key ) as $i => $e ) {
+			$label = self::label( $e['value'] );
+			$id    = $label ?? ' ' . $e['value'];
+			if ( ! isset( $groups[ $id ] ) ) {
+				$groups[ $id ] = array( 'label' => $label, 'values' => array(), 'indexes' => array(), 'on' => false );
+			}
+			$groups[ $id ]['values'][]  = $e['value'];
+			$groups[ $id ]['indexes'][] = $i;
+			$groups[ $id ]['on']        = $groups[ $id ]['on'] || $e['on'];
+		}
+		return array_values( $groups );
+	}
+
+	/** "3,4,5" and plain indexes from the settings form → ints. */
+	private static function indexes( $values ) {
+		$out = array();
+		foreach ( (array) $values as $v ) {
+			foreach ( explode( ',', (string) $v ) as $i ) {
+				if ( is_numeric( $i ) ) {
+					$out[] = (int) $i;
+				}
+			}
+		}
+		return $out;
 	}
 
 	public static function sanitize( $input ) {
@@ -228,22 +256,23 @@ class Settings {
 				$out[ $key ] = in_array( $input[ $key ] ?? '', array( 'swap', 'optional', 'fallback' ), true ) ? $input[ $key ] : 'swap';
 			} elseif ( in_array( $key, self::LISTS, true ) && isset( $input[ $key . '__items' ] ) ) {
 				// From the settings page: one toggle (and remove box) per entry, plus new entries.
-				$on    = array_map( 'intval', (array) ( $input[ $key . '__on' ] ?? array() ) );
-				$del   = array_map( 'intval', (array) ( $input[ $key . '__del' ] ?? array() ) );
+				// A row's switch covers all of a service's patterns: its value is "3,4,5".
+				$on    = self::indexes( $input[ $key . '__on' ] ?? array() );
+				$del   = self::indexes( $input[ $key . '__del' ] ?? array() );
 				$lines = array();
 				foreach ( (array) $input[ $key . '__items' ] as $i => $value ) {
 					$value = trim( sanitize_text_field( wp_unslash( $value ) ) );
-					if ( '' !== $value && ! in_array( (int) $i, $del, true ) ) {
-						$lines[] = ( in_array( (int) $i, $on, true ) ? '' : '#' ) . $value;
+					if ( '' !== $value && ! in_array( (int) $i, $del, true ) && ! isset( $lines[ $value ] ) ) {
+						$lines[ $value ] = ( in_array( (int) $i, $on, true ) ? '' : '#' ) . $value;
 					}
 				}
 				foreach ( explode( "\n", sanitize_textarea_field( wp_unslash( $input[ $key . '__add' ] ?? '' ) ) ) as $new ) {
-					$new = trim( $new );
+					$new = ltrim( trim( $new ), '#' );
 					if ( '' !== $new ) {
-						$lines[] = ltrim( $new, '#' );
+						$lines[ $new ] = $new; // Adding an entry that is already there (even switched off) turns it on.
 					}
 				}
-				$out[ $key ] = implode( "\n", array_unique( $lines ) );
+				$out[ $key ] = implode( "\n", $lines );
 			} else {
 				$out[ $key ] = isset( $input[ $key ] ) ? sanitize_textarea_field( wp_unslash( $input[ $key ] ) ) : $default;
 			}

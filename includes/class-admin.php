@@ -102,46 +102,46 @@ class Admin {
 			'hero'    => array(
 				'title'   => 'Hero image',
 				'icon'    => 'hero',
-				'intro'   => 'The biggest image on the first screen is usually what PageSpeed times as Largest Contentful Paint. Greenlight finds it on every page and gets it on screen first.',
+				'intro'   => 'Shows the biggest first-screen image first.',
 				'metrics' => array( 'LCP' ),
 				'fields'  => array(
-					'lcp'              => array( 'check', 'Prioritise the hero image', 'Finds the first big image (an <img> or a CSS background) and loads it first: no lazy-loading, fetchpriority="high", preloaded in <head>.' ),
-					'lcp_phone_copy'   => array( 'check', 'Smaller hero on phones', 'For CSS-background heroes from the media library, phones get the 1536px copy instead of the full-size original.', array( 'requires' => 'lcp' ) ),
-					'lcp_desktop_copy' => array( 'check', '2048px hero instead of huge originals', 'When the hero\'s original is wider than 2048px, use the 2048px copy WordPress already made.', array( 'requires' => 'lcp' ) ),
-					'lcp_webp'         => array( 'check', 'WebP copy of the hero', 'Makes a WebP version of the hero image (once, in the background) and serves it instead of the JPEG/PNG. The original file is not changed.', array( 'requires' => 'lcp' ) ),
-					'lcp_skip'         => array( 'lines', 'Never treat as the hero', 'Matched against the image address, class, alt text and id. Add a logo or badge here if Greenlight picks it by mistake.', array( 'requires' => 'lcp' ) ),
+					'lcp'              => array( 'check', 'Prioritise the hero image', 'Loaded first, never lazy, preloaded.' ),
+					'lcp_phone_copy'   => array( 'check', 'Smaller hero on phones', 'Phones get the 1536px copy.', array( 'requires' => 'lcp' ) ),
+					'lcp_desktop_copy' => array( 'check', 'Cap the hero at 2048px', 'Uses the 2048px copy of bigger originals.', array( 'requires' => 'lcp' ) ),
+					'lcp_webp'         => array( 'check', 'WebP copy of the hero', 'Serves a lighter WebP. The original stays.', array( 'requires' => 'lcp' ) ),
+					'lcp_skip'         => array( 'lines', 'Never treat as the hero', 'Logos, icons and badges to skip.', array( 'requires' => 'lcp' ) ),
 				),
 			),
 			'images'  => array(
 				'title'   => 'Images & embeds',
 				'icon'    => 'images',
-				'intro'   => 'Below-the-fold images and heavy embeds wait until they are needed, and every image keeps its space so nothing jumps while the page loads.',
+				'intro'   => 'Off-screen images and embeds wait. Nothing jumps.',
 				'metrics' => array( 'LCP', 'CLS', 'SI' ),
 				'fields'  => array(
-					'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Uses the browser\'s own loading="lazy". The first images and the hero always load at once.' ),
-					'lazy_eager_count' => array( 'number', 'Images that always load at once', 'Counted from the top of the page (logo, hero…). 2 suits most sites.', array( 'requires' => 'lazy', 'min' => 0, 'max' => 10, 'unit' => 'images' ) ),
-					'dimensions'       => array( 'check', 'Add missing width and height', 'From the file name or media library, so the page doesn\'t jump as images load.' ),
-					'responsive'       => array( 'check', 'Responsive sizes for theme images', 'Media-library images printed without srcset get WordPress\'s smaller copies, so phones and small slots download small files.' ),
-					'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Maps, forms and other embeds load when scrolled near.' ),
-					'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'Replaces YouTube iframes with their thumbnail and a play button; the player loads on click.' ),
-					'embeds_delay'     => array( 'check', 'Load heavy embeds on the first interaction', 'Maps, Vimeo, review and booking widgets load on the first scroll, tap or mouse move instead of with the page.' ),
-					'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch each one on or off, or add your own (part of the embed\'s address).', array( 'requires' => 'embeds_delay' ) ),
+					'lazy'             => array( 'check', 'Lazy-load images below the fold', 'Images load as they scroll into view.' ),
+					'lazy_eager_count' => array( 'number', 'Always load the first', 'From the top of the page. 2 suits most sites.', array( 'requires' => 'lazy', 'min' => 0, 'max' => 10, 'unit' => 'images' ) ),
+					'dimensions'       => array( 'check', 'Add missing image sizes', 'Stops the page jumping as images load.' ),
+					'responsive'       => array( 'check', 'Responsive theme images', 'Smaller files for phones.' ),
+					'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Embeds load when scrolled near.' ),
+					'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'The player loads on click.' ),
+					'embeds_delay'     => array( 'check', 'Delay heavy embeds', 'Maps, Vimeo, reviews and booking wait for the first scroll or tap.' ),
+					'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch off to load with the page.', array( 'requires' => 'embeds_delay' ) ),
 				),
 			),
 			'fonts'   => array(
 				'title'   => 'Fonts',
 				'icon'    => 'fonts',
-				'intro'   => 'Google Fonts are copied to this site, so text no longer waits on a second server before it can draw.',
+				'intro'   => 'Google Fonts served from this site.',
 				'metrics' => array( 'FCP', 'CLS' ),
 				'fields'  => array(
-					'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'Downloads Google Fonts stylesheets and files to this site (in the background) and serves them from here.' ),
-					'fonts_preload' => array( 'check', 'Preload the main font files', 'The Latin files of each family are requested before the page draws.', array( 'requires' => 'fonts_local' ) ),
-					'fonts_display' => array( 'choice', 'How text appears while fonts load', 'Sets font-display on the self-hosted fonts.', array(
+					'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'No second server for fonts.' ),
+					'fonts_preload' => array( 'check', 'Preload the main font files', 'Main font files load before the page draws.', array( 'requires' => 'fonts_local' ) ),
+					'fonts_display' => array( 'choice', 'While fonts load', 'font-display for self-hosted fonts.', array(
 						'requires' => 'fonts_local',
 						'options'  => array(
-							'swap'     => 'Text shows at once in a fallback font, then switches. Best for speed scores.',
-							'optional' => 'No layout shift at all, but a slow first visit may keep the fallback font.',
-							'fallback' => 'Waits a moment for the font, then uses the fallback.',
+							'swap'     => 'Text shows at once. Best score.',
+							'optional' => 'No shift. May keep the fallback font.',
+							'fallback' => 'Short wait, then the fallback.',
 						),
 					) ),
 				),
@@ -149,41 +149,41 @@ class Admin {
 			'scripts' => array(
 				'title'   => 'Scripts',
 				'icon'    => 'scripts',
-				'intro'   => 'Analytics, pixels and chat widgets wait for the visitor\'s first scroll, tap or mouse move. The theme\'s and plugins\' own scripts are never delayed, only deferred.',
+				'intro'   => 'Trackers and widgets wait for the first interaction.',
 				'metrics' => array( 'TBT', 'FCP', 'SI' ),
 				'fields'  => array(
-					'delay'            => array( 'check', 'Delay third-party scripts until the visitor interacts', 'Analytics, pixels, chat and widgets load on the first scroll, tap, click, key press or mouse move.' ),
-					'delay_timeout'    => array( 'number', 'Also load them after a set time', 'Set e.g. 6 to also count visitors who never touch the page in analytics. 0 waits for an interaction.', array( 'requires' => 'delay', 'min' => 0, 'max' => 60, 'unit' => 'seconds' ) ),
-					'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch each one on or off, or add your own (part of the script\'s address, or text from an inline script).', array( 'requires' => 'delay' ) ),
-					'delay_exclusions' => array( 'lines', 'Never delay', 'Wins over the list above. Consent tools must run at once; call tracking swaps phone numbers before a visitor taps one.', array( 'requires' => 'delay' ) ),
-					'defer_head'       => array( 'check', 'Defer scripts that block the first paint', 'Scripts in <head> load without holding up rendering. WordPress only defers a script when everything that depends on it can wait; jQuery and scripts with inline code are left alone.' ),
-					'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Moves jQuery and the scripts that need it below the page content. If any code earlier on a page uses jQuery, that page keeps jQuery in <head>.', array( 'requires' => 'defer_head', 'badge' => array( 'info', 'Checked on every page' ) ) ),
-					'defer_exclusions' => array( 'lines', 'Never defer', 'Script handles or parts of their address, e.g. a script that inline code in the theme calls straight away.', array( 'requires' => 'defer_head' ) ),
+					'delay'            => array( 'check', 'Delay third-party scripts', 'Analytics, pixels and chat load on the first scroll, tap or click.' ),
+					'delay_timeout'    => array( 'number', 'Load them anyway after', 'So analytics still counts visitors who never scroll or tap. 10 is standard; 0 = never.', array( 'requires' => 'delay', 'min' => 0, 'max' => 60, 'unit' => 'seconds' ) ),
+					'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch off to load with the page.', array( 'requires' => 'delay' ) ),
+					'delay_exclusions' => array( 'lines', 'Never delay', 'Always load at once: consent and call tracking.', array( 'requires' => 'delay' ) ),
+					'defer_head'       => array( 'check', 'Defer render-blocking scripts', 'Head scripts stop blocking the first paint.' ),
+					'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Pages that need it early keep it in the head.', array( 'requires' => 'defer_head', 'badge' => array( 'info', 'Checked on every page' ) ) ),
+					'defer_exclusions' => array( 'lines', 'Never defer', 'Scripts the theme calls straight away.', array( 'requires' => 'defer_head' ) ),
 				),
 			),
 			'cleanup' => array(
 				'title'   => 'Cleanup',
 				'icon'    => 'cleanup',
-				'intro'   => 'WordPress adds a few scripts and tags that most sites never use. Each one is a small win; together they trim the page head.',
+				'intro'   => 'Removes WordPress extras most sites don\'t use.',
 				'metrics' => array( 'FCP' ),
 				'fields'  => array(
 					'no_emojis'         => array( 'check', 'Remove the emoji script', 'Browsers show emoji natively.' ),
-					'no_embeds'         => array( 'check', 'Remove WordPress embed discovery', 'Stops other WordPress sites embedding this one as a card. YouTube and other embeds still work.' ),
-					'clean_head'        => array( 'check', 'Remove header clutter', 'RSD, Windows Live Writer, shortlink and generator tags.' ),
-					'no_dashicons'      => array( 'check', 'No Dashicons for visitors', 'The admin icon font is only loaded for logged-in users.' ),
-					'heartbeat'         => array( 'check', 'Calmer Heartbeat', 'Off on the front end; once a minute in wp-admin.' ),
-					'no_jquery_migrate' => array( 'check', 'Remove jQuery Migrate', 'Only if nothing on the site relies on old jQuery code.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
-					'no_block_css'      => array( 'check', 'No block-editor CSS on classic themes', 'Only on pages without blocks, and never on block themes.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
+					'no_embeds'         => array( 'check', 'Remove embed discovery', 'Your embeds still work.' ),
+					'clean_head'        => array( 'check', 'Remove header clutter', 'RSD, shortlink and generator tags.' ),
+					'no_dashicons'      => array( 'check', 'No Dashicons for visitors', 'Admin icons only when logged in.' ),
+					'heartbeat'         => array( 'check', 'Calmer Heartbeat', 'Off for visitors, once a minute in admin.' ),
+					'no_jquery_migrate' => array( 'check', 'Remove jQuery Migrate', 'Only if no old jQuery code runs.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
+					'no_block_css'      => array( 'check', 'No block CSS on classic themes', 'Pages without blocks only.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
 				),
 			),
 			'hosting' => array(
 				'title'   => 'Hosting',
 				'icon'    => 'hosting',
-				'intro'   => 'Greenlight has no page cache of its own: your host already caches pages. It keeps that cache fresh and opens connections early.',
+				'intro'   => 'Keeps your host\'s page cache fresh.',
 				'metrics' => array( 'FCP' ),
 				'fields'  => array(
-					'purge_on_save' => array( 'check', 'Clear host caches when content changes', 'After publishing or updating posts, menus, the Customizer, themes or plugins.' ),
-					'preconnect'    => array( 'check', 'Preconnect to third-party servers the first screen needs', 'At most three, from the page\'s <head>.' ),
+					'purge_on_save' => array( 'check', 'Clear host cache on changes', 'After posts, menus, themes or plugins change.' ),
+					'preconnect'    => array( 'check', 'Preconnect to first-screen servers', 'Up to three servers.' ),
 				),
 			),
 		);
@@ -258,7 +258,7 @@ class Admin {
 					<?php if ( ! empty( $x['badge'] ) ) : ?><span class="gl-badge gl-badge-<?php echo esc_attr( $x['badge'][0] ); ?>"><?php echo esc_html( $x['badge'][1] ); ?></span><?php endif; ?>
 				</div>
 				<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
-				<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Works when “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>” is on</p><?php endif; ?>
+				<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Needs “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>”</p><?php endif; ?>
 			</div>
 			<div class="gl-row-control">
 				<?php if ( 'check' === $f[0] ) : ?>
@@ -284,53 +284,59 @@ class Admin {
 		<?php
 	}
 
-	/** A list setting: one switch per entry, a remove button, and a box to add more. */
+	/** A list setting: one row per service (its switch covers all its patterns), a remove button, and a box to add more. */
 	private static function render_list( $key, array $f, array $s, array $labels ) {
-		$x       = $f[3] ?? array();
-		$req     = $x['requires'] ?? '';
-		$entries = Settings::entries( $key );
-		$on      = count( array_filter( wp_list_pluck( $entries, 'on' ) ) );
-		$base    = Settings::OPTION . '[' . $key;
+		$x      = $f[3] ?? array();
+		$req    = $x['requires'] ?? '';
+		$groups = Settings::groups( $key );
+		$on     = count( array_filter( wp_list_pluck( $groups, 'on' ) ) );
+		$base   = Settings::OPTION . '[' . $key;
 		?>
 		<section class="gl-card gl-list-card<?php echo $req && empty( $s[ $req ] ) ? ' is-inactive' : ''; ?>"<?php echo $req ? ' data-requires="' . esc_attr( $req ) . '"' : ''; ?> data-list="<?php echo esc_attr( $key ); ?>">
 			<header class="gl-list-head">
 				<div>
 					<h3 id="gl-list-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $f[1] ); ?></h3>
 					<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
-					<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Works when “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>” is on</p><?php endif; ?>
+					<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Needs “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>”</p><?php endif; ?>
 				</div>
-				<span class="gl-count" data-count><?php echo (int) $on; ?> on<?php echo count( $entries ) > $on ? ' · ' . (int) ( count( $entries ) - $on ) . ' off' : ''; ?></span>
+				<span class="gl-count" data-count><?php echo (int) $on; ?> on<?php echo count( $groups ) > $on ? ' · ' . (int) ( count( $groups ) - $on ) . ' off' : ''; ?></span>
 			</header>
-			<?php if ( count( $entries ) > 6 ) : ?>
+			<?php if ( count( $groups ) > 8 ) : ?>
 				<div class="gl-search">
 					<?php echo self::icon( 'search' ); ?>
-					<input type="search" placeholder="Filter <?php echo (int) count( $entries ); ?> entries" aria-label="Filter <?php echo esc_attr( $f[1] ); ?>" data-filter>
+					<input type="search" placeholder="Filter <?php echo (int) count( $groups ); ?> entries" aria-label="Filter <?php echo esc_attr( $f[1] ); ?>" data-filter>
 				</div>
 			<?php endif; ?>
 			<ul class="gl-items" aria-labelledby="gl-list-<?php echo esc_attr( $key ); ?>">
-				<?php foreach ( $entries as $i => $e ) : $label = Settings::label( $e['value'] ); $tid = 'gl-' . $key . '-' . $i; ?>
-					<li class="gl-item" data-search="<?php echo esc_attr( strtolower( $label . ' ' . $e['value'] ) ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $e['value'] ); ?>">
+				<?php foreach ( $groups as $n => $g ) : $tid = 'gl-' . $key . '-' . $n; $idx = implode( ',', $g['indexes'] ); $name = $g['label'] ?? $g['values'][0]; ?>
+					<li class="gl-item" data-search="<?php echo esc_attr( strtolower( $g['label'] . ' ' . implode( ' ', $g['values'] ) ) ); ?>">
+						<?php foreach ( $g['indexes'] as $j => $i ) : ?>
+							<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $g['values'][ $j ] ); ?>">
+						<?php endforeach; ?>
 						<label class="gl-item-main" for="<?php echo esc_attr( $tid ); ?>">
-							<?php echo self::switch_input( $tid, $base . '__on][]', (string) $i, $e['on'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+							<?php echo self::switch_input( $tid, $base . '__on][]', $idx, $g['on'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 							<span class="gl-item-text">
-								<?php if ( $label ) : ?><strong><?php echo esc_html( $label ); ?></strong><?php endif; ?>
-								<code><?php echo esc_html( $e['value'] ); ?></code>
+								<?php if ( $g['label'] ) : ?>
+									<strong><?php echo esc_html( $g['label'] ); ?></strong>
+									<span class="gl-patterns"><?php foreach ( $g['values'] as $v ) : ?><code><?php echo esc_html( $v ); ?></code><?php endforeach; ?></span>
+								<?php else : ?>
+									<strong class="gl-custom"><?php echo esc_html( $g['values'][0] ); ?></strong>
+								<?php endif; ?>
 							</span>
 						</label>
 						<label class="gl-remove" title="Remove">
-							<input type="checkbox" name="<?php echo esc_attr( $base . '__del]' ); ?>[]" value="<?php echo (int) $i; ?>">
-							<span class="gl-remove-do"><?php echo self::icon( 'trash' ); ?><span class="screen-reader-text">Remove <?php echo esc_html( $e['value'] ); ?></span></span>
+							<input type="checkbox" name="<?php echo esc_attr( $base . '__del]' ); ?>[]" value="<?php echo esc_attr( $idx ); ?>">
+							<span class="gl-remove-do"><?php echo self::icon( 'trash' ); ?><span class="screen-reader-text">Remove <?php echo esc_html( $name ); ?></span></span>
 							<span class="gl-remove-undo"><?php echo self::icon( 'undo' ); ?>Undo</span>
 						</label>
 					</li>
 				<?php endforeach; ?>
-				<?php if ( ! $entries ) : ?><li class="gl-empty">Nothing here yet.</li><?php endif; ?>
+				<?php if ( ! $groups ) : ?><li class="gl-empty">Nothing here yet.</li><?php endif; ?>
 			</ul>
 			<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[]" value="">
 			<div class="gl-add">
-				<label for="gl-add-<?php echo esc_attr( $key ); ?>">Add your own <span>one per line</span></label>
-				<textarea id="gl-add-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $base . '__add]' ); ?>" rows="2" spellcheck="false" placeholder="example.com/widget.js"></textarea>
+				<label for="gl-add-<?php echo esc_attr( $key ); ?>">Add <span>one per line</span></label>
+				<textarea id="gl-add-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $base . '__add]' ); ?>" rows="1" spellcheck="false" placeholder="example.com/widget.js"></textarea>
 			</div>
 		</section>
 		<?php
@@ -399,7 +405,7 @@ class Admin {
 				<?php if ( $notice ) : ?>
 					<div class="gl-toast" role="status"><?php echo self::icon( 'check' ); ?><?php echo esc_html( $notice ); ?></div>
 				<?php endif; ?>
-				<div class="gl-off-banner" role="status"><?php echo self::icon( 'warn' ); ?><div><strong>Greenlight is paused.</strong> Pages are served untouched and cache clearing stops. Your settings below are kept; switch it back on and save to resume.</div></div>
+				<div class="gl-off-banner" role="status"><?php echo self::icon( 'warn' ); ?><div><strong>Greenlight is paused.</strong> Pages are served untouched. Switch on and save to resume.</div></div>
 
 				<nav class="gl-tabs" role="tablist" aria-label="Greenlight settings">
 					<?php foreach ( $nav as $slug => $t ) : ?>
@@ -421,15 +427,15 @@ class Admin {
 									<span><strong data-total-on><?php echo (int) $on; ?></strong>of <?php echo (int) $total; ?></span>
 								</div>
 								<div>
-									<h2>Optimizations switched on</h2>
-									<p>Every option is safe on most sites and on by default, except the two in Cleanup marked “Test after turning on”. Pick an area below to fine-tune it, and use “Compare a page” to see any page with and without Greenlight.</p>
+									<h2>Optimizations on</h2>
+									<p>Safe defaults. Pick an area to fine-tune it.</p>
 								</div>
 							</div>
 							<?php if ( $conflicts ) : ?>
 								<div class="gl-card gl-alert">
 									<?php echo self::icon( 'warn' ); ?>
 									<div>
-										<h3>Other speed plugins are doing some of the same jobs</h3>
+										<h3>Overlapping plugins</h3>
 										<ul>
 											<?php foreach ( $conflicts as $name => $advice ) : ?>
 												<li><strong><?php echo esc_html( $name ); ?>:</strong> <?php echo esc_html( $advice ); ?>.</li>
@@ -456,7 +462,7 @@ class Admin {
 						<aside class="gl-overview-side">
 							<div class="gl-card gl-side-card">
 								<h3>Compare a page</h3>
-								<p>Open any page with and without Greenlight. The page source ends with a <code>&lt;!-- Greenlight … --&gt;</code> line listing what changed.</p>
+								<p>Open a page with and without Greenlight.</p>
 								<div class="gl-compare">
 									<span class="gl-compare-host"><?php echo esc_html( preg_replace( '#^https?://#', '', untrailingslashit( home_url() ) ) ); ?></span>
 									<input type="text" value="/" aria-label="Page path" spellcheck="false" data-compare>
@@ -468,15 +474,15 @@ class Admin {
 							</div>
 							<div class="gl-card gl-side-card">
 								<h3>Caches</h3>
-								<p><?php echo $host ? esc_html( $host . ' caches pages at the server. Greenlight clears that cache whenever content changes.' ) : 'No host page cache found. Greenlight has no page cache of its own; use your host\'s or a caching plugin.'; ?></p>
+								<p><?php echo $host ? esc_html( $host . ' page cache, cleared on every change.' ) : 'No host page cache found.'; ?></p>
 								<div class="gl-btn-row">
 									<a class="gl-btn gl-btn-soft" href="<?php echo esc_url( $purge_url ); ?>"><?php echo self::icon( 'bolt' ); ?>Clear caches</a>
 									<?php if ( $fonts ) : ?><a class="gl-btn gl-btn-ghost" href="<?php echo esc_url( $fonts_url ); ?>"><?php echo self::icon( 'refresh' ); ?>Re-download fonts</a><?php endif; ?>
 								</div>
 							</div>
 							<div class="gl-card gl-side-card gl-tip">
-								<h3>Checking from the command line</h3>
-								<p><code>wp greenlight status</code> shows every setting; add <code>?greenlight=off</code> to any URL to see a page untouched.</p>
+								<h3>Command line</h3>
+								<p><code>wp greenlight status</code></p>
 							</div>
 						</aside>
 					</div>
