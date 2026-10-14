@@ -7,6 +7,10 @@ off on WP Engine too). Greenlight clears the host's cache when content changes i
 
 Requires WordPress 6.3+ and PHP 7.4+.
 
+![Greenlight's Overview: optimizations switched on, one tile per area, compare a page, clear caches](docs/greenlight-overview.png)
+
+![The Scripts tab: delay switch, 10-second fallback, and one row per service in the delay list](docs/greenlight-scripts.png)
+
 ## What it does
 
 | Feature | Metric | What it does |
