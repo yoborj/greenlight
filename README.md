@@ -55,24 +55,14 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - Settings → Greenlight warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts).
 
-## Testing
+## Test results
 
-`tests/sandbox/` builds a throwaway WordPress (SQLite, PHP's built-in server) with a deliberately slow
-theme: Google Fonts, a 2400px CSS-background hero, images without sizes, YouTube and Google Maps
-embeds, GA4, a Meta pixel, a chat widget, a consent loader and call tracking.
+Tested before release on a deliberately slow test site (Google Fonts, a 2400px CSS-background hero,
+images without sizes, YouTube and Google Maps embeds, GA4, a Meta pixel, a chat widget, a consent
+loader and call tracking), served over HTTP/2 with compression like a real host. Forms, menus, the
+slider, consent, gtag click tracking and the delayed scripts all kept working on desktop and phone.
 
-```
-PHP=/path/to/php tests/sandbox/setup.sh        # once
-PHP=/path/to/php tests/sandbox/serve.sh        # http://127.0.0.1:8899
-tests/sandbox/serve-h2.sh                      # https://127.0.0.1:8443, HTTP/2 + compression like a real host
-node tests/sandbox/safety.cjs                  # "doesn't break the site" checks, plugin off vs on
-```
-
-Measure with Lighthouse against `https://127.0.0.1:8443/` and `…/?greenlight=off`. Measure through
-`serve-h2.sh`: PHP's built-in server alone is HTTP/1.1 without compression, which no real host is, and
-it makes phone LCP look about 2.5 s worse than it is.
-
-Results on the sandbox (Lighthouse 12.8, median of 3, Oct 2026):
+Lighthouse 12.8, median of 3, Oct 2026:
 
 | | Phone off → on | Desktop off → on |
 |---|---|---|
