@@ -53,7 +53,11 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - The end of every page's source has a summary, e.g.
   `<!-- Greenlight 0.1.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
-  Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts).
+  Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize).
+- Call tracking or a cookie banner installed **through Google Tag Manager** waits along with GTM. On
+  those sites switch off "Google Tag Manager" under Scripts → Scripts to delay.
+- Holding tracking scripts back is not cookie consent. When testing consent, scroll the page first
+  (without clicking the banner), or use `?greenlight=off`.
 
 ## WP-CLI
 

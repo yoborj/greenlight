@@ -85,6 +85,7 @@ class Admin {
 			'W3 Total Cache'  => array( 'defined', 'W3TC', 'turn off its lazy-load and minify/defer options' ),
 			'SiteGround Speed Optimizer' => array( 'defined', 'SiteGround_Optimizer\\VERSION', 'turn off its lazy-load, font and JS options' ),
 			'Flying Scripts'  => array( 'defined', 'FLYING_SCRIPTS_VERSION', 'use one script-delay tool' ),
+			'WP-Optimize'     => array( 'defined', 'WPO_VERSION', 'turn off its lazy-load and minify/defer options (and its page cache on WP Engine)' ),
 		);
 		foreach ( $map as $name => $c ) {
 			if ( defined( $c[1] ) ) {
@@ -156,7 +157,7 @@ class Admin {
 				'fields'  => array(
 					'delay'            => array( 'check', 'Delay third-party scripts', 'Analytics, pixels and chat load on the first scroll, tap or click.' ),
 					'delay_timeout'    => array( 'number', 'Load them anyway after', 'So analytics still counts visitors who never scroll or tap. 10 is standard; 0 = never.', array( 'requires' => 'delay', 'min' => 0, 'max' => 60, 'unit' => 'seconds' ) ),
-					'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch off to load with the page.', array( 'requires' => 'delay' ) ),
+					'delay_patterns'   => array( 'lines', 'Scripts to delay', 'Switch off to load with the page.', array( 'requires' => 'delay', 'hint' => 'Call tracking or a cookie banner loaded through Google Tag Manager? Switch off Google Tag Manager here, so they run at once.' ) ),
 					'delay_exclusions' => array( 'lines', 'Never delay', 'Always load at once: consent and call tracking.', array( 'requires' => 'delay' ) ),
 					'defer_head'       => array( 'check', 'Defer render-blocking scripts', 'Head scripts stop blocking the first paint.' ),
 					'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Pages that need it early keep it in the head.', array( 'requires' => 'defer_head', 'badge' => array( 'info', 'Checked on every page' ) ) ),
@@ -299,6 +300,7 @@ class Admin {
 				<div>
 					<h3 id="gl-list-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $f[1] ); ?></h3>
 					<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
+					<?php if ( ! empty( $x['hint'] ) ) : ?><p class="gl-hint"><?php echo self::icon( 'warn' ); ?><?php echo esc_html( $x['hint'] ); ?></p><?php endif; ?>
 					<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Needs “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>”</p><?php endif; ?>
 				</div>
 				<span class="gl-count" data-count><?php echo (int) $on; ?> on<?php echo count( $groups ) > $on ? ' · ' . (int) ( count( $groups ) - $on ) . ' off' : ''; ?></span>

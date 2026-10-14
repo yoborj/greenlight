@@ -172,6 +172,8 @@ body.toplevel_page_greenlight #wpfooter { display: none; }
 .gl-needs { display: none; align-items: center; gap: 5px; margin-top: 6px !important; color: var(--gl-warn); font-size: 12.5px !important; font-weight: 500; }
 .gl-needs .gl-ico { width: 14px; height: 14px; }
 .is-inactive .gl-needs { display: flex; }
+.gl-hint { display: flex; align-items: flex-start; gap: 7px; margin-top: 10px !important; padding: 8px 12px; border-radius: 10px; background: var(--gl-warn-bg); border: 1px solid var(--gl-warn-line); color: #5f3305; font-size: 12.5px !important; max-width: 680px; }
+.gl-hint .gl-ico { width: 15px; height: 15px; margin-top: 1px; color: var(--gl-warn); }
 .gl-row.is-inactive .gl-row-text > :not(.gl-needs), .gl-row.is-inactive .gl-row-control, .gl-row.is-inactive .gl-choices,
 .gl-list-card.is-inactive .gl-items, .gl-list-card.is-inactive .gl-add, .gl-list-card.is-inactive .gl-search { opacity: .5; }
 .gl-badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .01em; }
