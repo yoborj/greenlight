@@ -4,7 +4,7 @@ namespace Greenlight;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Settings → Greenlight, the "Clear caches" toolbar button, and conflict notices.
+ * The Greenlight admin menu page, the "Clear caches" toolbar button, and conflict notices.
  */
 class Admin {
 
@@ -19,7 +19,9 @@ class Admin {
 	}
 
 	public static function menu() {
-		add_options_page( 'Greenlight', 'Greenlight', 'manage_options', 'greenlight', array( __CLASS__, 'page' ) );
+		// Its own menu item, just below Settings. The icon is a traffic light; WordPress recolours it to match the admin theme.
+		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" fill-rule="evenodd" d="M10 1a4 4 0 0 1 4 4v10a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2.6a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8zm0 4.5a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8zM10 13a2.1 2.1 0 1 0 0 4.2A2.1 2.1 0 0 0 10 13z"/></svg>' );
+		add_menu_page( 'Greenlight', 'Greenlight', 'manage_options', 'greenlight', array( __CLASS__, 'page' ), $icon, 81 );
 	}
 
 	public static function register() {
@@ -27,7 +29,7 @@ class Admin {
 	}
 
 	public static function assets( $hook ) {
-		if ( 'settings_page_greenlight' !== $hook ) {
+		if ( 'toplevel_page_greenlight' !== $hook ) {
 			return;
 		}
 		wp_enqueue_style( 'greenlight-admin', GREENLIGHT_URL . 'assets/admin.css', array(), GREENLIGHT_VERSION );
@@ -35,7 +37,7 @@ class Admin {
 	}
 
 	public static function action_links( $links ) {
-		array_unshift( $links, '<a href="' . esc_url( admin_url( 'options-general.php?page=greenlight' ) ) . '">Settings</a>' );
+		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=greenlight' ) ) . '">Settings</a>' );
 		return $links;
 	}
 
@@ -68,7 +70,7 @@ class Admin {
 		$n = Fonts::clear();
 		Purge::all( 'fonts cleared' );
 		set_transient( 'greenlight_notice_' . get_current_user_id(), "Removed {$n} self-hosted font set(s). They rebuild on the next page view.", 60 );
-		wp_safe_redirect( admin_url( 'options-general.php?page=greenlight' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight' ) );
 		exit;
 	}
 
@@ -401,6 +403,7 @@ class Admin {
 					</div>
 				</header>
 				<hr class="wp-header-end">
+				<?php settings_errors(); ?>
 
 				<?php if ( $notice ) : ?>
 					<div class="gl-toast" role="status"><?php echo self::icon( 'check' ); ?><?php echo esc_html( $notice ); ?></div>

@@ -26,7 +26,7 @@ Requires WordPress 6.3+ and PHP 7.4+.
 
 ## Settings
 
-Settings → Greenlight opens on an **Overview**: how many optimizations are on, one tile per area
+**Greenlight** (its own item in the wp-admin menu) opens on an **Overview**: how many optimizations are on, one tile per area
 (with the PageSpeed metrics it helps), host cache and font status, overlapping plugins, Clear caches,
 and **Compare a page** (opens any page with and without `?greenlight=off`). The header holds the
 master switch. Tabs: **Hero image · Images & embeds · Fonts · Scripts · Cleanup · Hosting**.
@@ -52,7 +52,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with Greenlight fully off, for before/after checks.
 - The end of every page's source has a summary, e.g.
   `<!-- Greenlight 0.1.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4 … -->`.
-- Settings → Greenlight warns when another plugin does the same job (WP Rocket, Autoptimize,
+- The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts).
 
 ## WP-CLI
@@ -67,4 +67,4 @@ wp greenlight set delay_timeout 0
 ## Install
 
 Zip the folder (named `greenlight`) and upload it under Plugins → Add New → Upload, or copy it to
-`wp-content/plugins/greenlight/`. Settings are under Settings → Greenlight; the defaults are safe.
+`wp-content/plugins/greenlight/`. Settings are under **Greenlight** in the wp-admin menu; the defaults are safe.
