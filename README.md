@@ -55,25 +55,6 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - Settings → Greenlight warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts).
 
-## Test results
-
-Tested before release on a deliberately slow test site (Google Fonts, a 2400px CSS-background hero,
-images without sizes, YouTube and Google Maps embeds, GA4, a Meta pixel, a chat widget, a consent
-loader and call tracking), served over HTTP/2 with compression like a real host. Forms, menus, the
-slider, consent, gtag click tracking and the delayed scripts all kept working on desktop and phone.
-
-Lighthouse 12.8, median of 3, Oct 2026:
-
-| | Phone off → on | Desktop off → on |
-|---|---|---|
-| Performance score | 72 → 99 | 77 → 100 |
-| First Contentful Paint | 2.33 s → 0.79 s | 0.56 s → 0.21 s |
-| Largest Contentful Paint | 29.9 s → 2.25 s | 4.89 s → 0.60 s |
-| Total Blocking Time | 51 ms → 0 ms | 0 ms → 0 ms |
-| Cumulative Layout Shift | 0.003 → 0 | 0.015 → 0 |
-| Speed Index | 2.33 s → 0.79 s | 0.63 s → 0.21 s |
-| Page weight | 8.2 MB → 0.8 MB | 8.2 MB → 1.0 MB |
-
 ## WP-CLI
 
 ```
