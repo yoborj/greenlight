@@ -9,7 +9,8 @@ Since 0.2.0 it also has a **Security** tab: the hardening a managed host leaves 
 alerts when something changes. Firewall, DDoS protection, backups and malware scanning stay with the
 host; matching plugins against vulnerability feeds belongs in the QA app.
 
-Requires WordPress 6.3+ and PHP 7.4+.
+Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.2.0**
+([download](https://github.com/yoborj/greenlight/releases/tag/v0.2.0), [changelog](CHANGELOG.md)).
 
 ![Greenlight's Overview: optimizations switched on, one tile per area, compare a page, clear caches](docs/greenlight-overview.png)
 
@@ -127,7 +128,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with the speed features off, for before/after checks.
   The Security tab's features stay on.
 - The end of every page's source has a summary, e.g.
-  `<!-- Greenlight 0.1.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4 … -->`.
+  `<!-- Greenlight 0.2.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize),
   or needs something a Security switch turns off (Jetpack and XML-RPC).
