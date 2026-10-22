@@ -359,3 +359,29 @@ body.toplevel_page_greenlight #wpfooter { display: none; }
 @media (prefers-reduced-motion: reduce) {
 	.gl-wrap *, .gl-wrap *::before, .gl-wrap *::after { animation: none !important; transition: none !important; }
 }
+
+/* Security tab */
+.gl-btn-sm { min-height: 30px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; }
+.gl-btn-sm .gl-ico { width: 14px; height: 14px; }
+.gl-row-action { margin-top: 10px !important; }
+.gl-text-field { grid-column: 1 / -1; }
+.gl-wrap .gl-text-field input {
+	width: 100%; min-height: 38px; margin: 0; padding: 0 12px; border: 1px solid var(--gl-line); border-radius: 10px; background: #fff;
+	font: 12.5px/1.5 var(--gl-mono); color: var(--gl-text); box-shadow: none;
+}
+.gl-wrap .gl-text-field input:focus { border-color: var(--gl-green); box-shadow: 0 0 0 3px rgba(22, 163, 74, .15); outline: none; }
+.gl-row.is-inactive .gl-text-field { opacity: .5; }
+.gl-alerts { padding: 20px 22px 18px; margin-bottom: 16px; }
+.gl-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; padding: 0; list-style: none; color: var(--gl-muted); font-size: 12.5px; }
+.gl-checks li { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.gl-checks .gl-ico { width: 14px; height: 14px; color: var(--gl-green); }
+.gl-alert-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--gl-line-soft); border-radius: 12px; overflow: hidden; }
+.gl-alert-item { display: flex; align-items: flex-start; gap: 12px; margin: 0; padding: 12px 14px; }
+.gl-alert-item + .gl-alert-item { border-top: 1px solid var(--gl-line-soft); }
+.gl-alert-body { min-width: 0; flex: 1; }
+.gl-alert-body p { overflow-wrap: anywhere; }
+.gl-alert-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px !important; color: var(--gl-faint); font-size: 12.5px !important; }
+.gl-sev { flex: none; min-width: 62px; margin-top: 1px; padding: 2px 8px; border-radius: 999px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.gl-sev-high { background: #fdecea; color: var(--gl-danger); border: 1px solid #f7c9c4; }
+.gl-sev-medium { background: var(--gl-warn-bg); color: var(--gl-warn); border: 1px solid var(--gl-warn-line); }
+.gl-sev-low { background: var(--gl-line-soft); color: var(--gl-muted); border: 1px solid var(--gl-line); }

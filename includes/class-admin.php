@@ -15,6 +15,9 @@ class Admin {
 		add_action( 'admin_bar_menu', array( __CLASS__, 'toolbar' ), 100 );
 		add_action( 'admin_post_greenlight_purge', array( __CLASS__, 'handle_purge' ) );
 		add_action( 'admin_post_greenlight_fonts_clear', array( __CLASS__, 'handle_fonts_clear' ) );
+		add_action( 'admin_post_greenlight_reset_baseline', array( __CLASS__, 'handle_reset_baseline' ) );
+		add_action( 'admin_post_greenlight_trust', array( __CLASS__, 'handle_trust' ) );
+		add_action( 'admin_post_greenlight_clear_alerts', array( __CLASS__, 'handle_clear_alerts' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( GREENLIGHT_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
@@ -74,8 +77,38 @@ class Admin {
 		exit;
 	}
 
-	/** Other plugins that do the same jobs; running two on one job causes double work or breakage. */
-	private static function conflicts() {
+	public static function handle_reset_baseline() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_reset_baseline' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		$state = Drift::reset();
+		set_transient( 'greenlight_notice_' . get_current_user_id(), 'New script baseline: ' . count( $state['baseline'] ) . ' domain(s) from the home page. Greenlight learns the rest from page views for the next 24 hours.', 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=security' ) );
+		exit;
+	}
+
+	public static function handle_trust() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_trust' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		$domain = Content_Check::trust( sanitize_text_field( wp_unslash( $_GET['domain'] ?? '' ) ) );
+		set_transient( 'greenlight_notice_' . get_current_user_id(), $domain ? "{$domain} is trusted now: the content check won't alert when an admin adds it." : 'That isn\'t a domain.', 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=security' ) );
+		exit;
+	}
+
+	public static function handle_clear_alerts() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_clear_alerts' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		Alerts::clear();
+		set_transient( 'greenlight_notice_' . get_current_user_id(), 'Alerts cleared.', 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=security' ) );
+		exit;
+	}
+
+	/** Other plugins that do the same jobs (or that a Security switch breaks); running two on one job causes double work or breakage. */
+	public static function conflicts() {
 		$found = array();
 		$map   = array(
 			'WP Rocket'       => array( 'defined', 'WP_ROCKET_VERSION', 'turn off its Lazyload, Delay JavaScript and Remove Unused CSS, or Greenlight\'s equivalents' ),
@@ -91,6 +124,9 @@ class Admin {
 			if ( defined( $c[1] ) ) {
 				$found[ $name ] = $c[2];
 			}
+		}
+		if ( Settings::get( 'xmlrpc_off' ) && defined( 'JETPACK__VERSION' ) ) {
+			$found['Jetpack'] = 'it needs XML-RPC to connect to WordPress.com: switch off “Turn off XML-RPC” under Security, or expect Jetpack to disconnect';
 		}
 		return $found;
 	}
@@ -189,6 +225,31 @@ class Admin {
 					'preconnect'    => array( 'check', 'Preconnect to first-screen servers', 'Up to three servers.' ),
 				),
 			),
+			'security' => array(
+				'title'   => 'Security',
+				'icon'    => 'security',
+				'intro'   => 'Hardening the host leaves to you, and alerts when something changes.',
+				'metrics' => array(),
+				'fields'  => array(
+					'headers'            => array( 'check', 'Security headers', 'No MIME sniffing, a strict referrer policy, framing by this site only, no camera, microphone or location access.' ),
+					'hsts'               => array( 'check', 'HSTS', 'Browsers use only HTTPS for this site, for the time below. Sent over HTTPS only.', array( 'badge' => array( 'warn', 'Test after turning on' ) ) ),
+					'hsts_max_age'       => array( 'number', 'Remember HTTPS for', '300 while testing; 31536000 (a year) once every page works on HTTPS.', array( 'requires' => 'hsts', 'min' => 0, 'max' => 63072000, 'unit' => 'seconds' ) ),
+					'csp_report_only'    => array( 'check', 'Content Security Policy, report only', 'The browser console reports what the policy would block; nothing is blocked. Enforcing it would block Greenlight\'s own delayed-script loader.' ),
+					'csp_policy'         => array( 'text', 'Policy', 'Add report-uri https://… to collect the reports.', array( 'requires' => 'csp_report_only' ) ),
+					'hide_usernames'     => array( 'check', 'Hide usernames from visitors', '?author=1 goes to the home page; the users REST endpoints and users sitemap are gone when logged out. The editor keeps working.' ),
+					'xmlrpc_off'         => array( 'check', 'Turn off XML-RPC', 'xmlrpc.php answers 403. Password-guessing bots love it; Jetpack needs it.' ),
+					'file_editor_off'    => array( 'check', 'Turn off the file editor', 'No editing theme and plugin code in wp-admin.', Security::file_edit_preset() ? array( 'badge' => array( 'info', 'Already set in wp-config.php' ) ) : array() ),
+					'email_obfuscation'  => array( 'check', 'Hide email addresses from bots', 'Addresses in the text and in mailto: links are encoded. Visitors see no difference.' ),
+					'app_passwords_off'  => array( 'check', 'Turn off application passwords', 'Integrations such as Zapier sign in with these.', array( 'badge' => array( 'warn', 'Check integrations first' ) ) ),
+					'alert_email'        => array( 'text', 'Send alerts to', 'Medium and high alerts, grouped into one email per request. Empty: the site admin email.', array( 'type' => 'email', 'placeholder' => get_option( 'admin_email' ) ) ),
+					'admin_alerts'       => array( 'check', 'Email on admin changes', 'New or promoted administrators, plugins installed or activated, theme switched.' ),
+					'script_drift'       => array( 'check', 'Alert on new script domains', 'Learns where pages load scripts from, then alerts once for each new domain.', array( 'action' => array( 'Reset baseline', wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_reset_baseline' ), 'greenlight_reset_baseline' ) ) ) ),
+					'core_file_check'    => array( 'check', 'Daily core file check', 'Core files against WordPress.org checksums (like wp core verify-checksums), and PHP files in uploads. A few seconds at a time.' ),
+					'content_check'      => array( 'check', 'Check content changes', 'Scripts, embeds and hidden links added to posts and pages, and content changed outside WordPress.' ),
+					'content_trusted'    => array( 'lines', 'Trusted domains', 'Embeds and links an admin adds from these never alert. Domains already in the content when the check was switched on are trusted too.', array( 'requires' => 'content_check', 'placeholder' => 'example.com' ) ),
+					'content_spam_words' => array( 'lines', 'Spam words', 'Never alert on their own: added ones make an alert one step more severe.', array( 'requires' => 'content_check', 'placeholder' => 'word or phrase' ) ),
+				),
+			),
 		);
 	}
 
@@ -211,6 +272,7 @@ class Admin {
 			'warn'     => '<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
 			'check'    => '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 			'server'   => '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+			'security' => '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>',
 			'link'     => '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 		);
 		return '<svg class="gl-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ( $paths[ $name ] ?? '' ) . '</svg>';
@@ -261,6 +323,7 @@ class Admin {
 					<?php if ( ! empty( $x['badge'] ) ) : ?><span class="gl-badge gl-badge-<?php echo esc_attr( $x['badge'][0] ); ?>"><?php echo esc_html( $x['badge'][1] ); ?></span><?php endif; ?>
 				</div>
 				<p class="gl-row-desc"><?php echo esc_html( $f[2] ); ?></p>
+				<?php if ( ! empty( $x['action'] ) ) : ?><p class="gl-row-action"><a class="gl-btn gl-btn-ghost gl-btn-sm" href="<?php echo esc_url( $x['action'][1] ); ?>"><?php echo self::icon( 'refresh' ); ?><?php echo esc_html( $x['action'][0] ); ?></a></p><?php endif; ?>
 				<?php if ( $req ) : ?><p class="gl-needs"><?php echo self::icon( 'link' ); ?>Needs “<?php echo esc_html( $labels[ $req ] ?? $req ); ?>”</p><?php endif; ?>
 			</div>
 			<div class="gl-row-control">
@@ -273,6 +336,11 @@ class Admin {
 					</span>
 				<?php endif; ?>
 			</div>
+			<?php if ( 'text' === $f[0] ) : ?>
+				<div class="gl-text-field">
+					<input type="<?php echo esc_attr( $x['type'] ?? 'text' ); ?>" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $s[ $key ] ); ?>" placeholder="<?php echo esc_attr( $x['placeholder'] ?? '' ); ?>" spellcheck="false">
+				</div>
+			<?php endif; ?>
 			<?php if ( 'choice' === $f[0] ) : ?>
 				<div class="gl-choices" role="radiogroup" aria-labelledby="<?php echo esc_attr( $id ); ?>-label">
 					<?php foreach ( $x['options'] as $value => $help ) : ?>
@@ -340,8 +408,82 @@ class Admin {
 			<input type="hidden" name="<?php echo esc_attr( $base . '__items]' ); ?>[]" value="">
 			<div class="gl-add">
 				<label for="gl-add-<?php echo esc_attr( $key ); ?>">Add <span>one per line</span></label>
-				<textarea id="gl-add-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $base . '__add]' ); ?>" rows="1" spellcheck="false" placeholder="example.com/widget.js"></textarea>
+				<textarea id="gl-add-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( $base . '__add]' ); ?>" rows="1" spellcheck="false" placeholder="<?php echo esc_attr( $x['placeholder'] ?? 'example.com/widget.js' ); ?>"></textarea>
 			</div>
+		</section>
+		<?php
+	}
+
+	/** The Security tab's alerts (newest first, "Trust" buttons for content-check domains) and where each check stands. */
+	private static function render_alerts() {
+		$alerts  = Alerts::all();
+		$trusted = Content_Check::trusted();
+		$types   = array( 'admin_change' => 'Admin change', 'script_drift' => 'Script drift', 'core_files' => 'Core files', 'content_check' => 'Content' );
+		$checks  = array();
+		if ( Settings::get( 'script_drift' ) ) {
+			$drift = Drift::state();
+			if ( ! $drift ) {
+				$checks[] = 'Script baseline: starts with the next page view';
+			} elseif ( $drift['learning_until'] > time() ) {
+				$checks[] = sprintf( 'Script baseline: %d domain(s), learning for %s more', count( $drift['baseline'] ), human_time_diff( $drift['learning_until'] ) );
+			} else {
+				$checks[] = sprintf( 'Script baseline: %d domain(s)', count( $drift['baseline'] ) );
+			}
+		}
+		if ( Settings::get( 'core_file_check' ) ) {
+			$core = Core_Check::state();
+			if ( 'idle' !== $core['phase'] ) {
+				$checks[] = 'Core files: checking now';
+			} elseif ( $core['error'] ) {
+				$checks[] = 'Core files: ' . $core['error'];
+			} else {
+				$checks[] = $core['finished'] ? sprintf( 'Core files: checked %s ago', human_time_diff( $core['finished'] ) ) : 'Core files: first check within a day';
+			}
+		}
+		if ( Settings::get( 'content_check' ) ) {
+			$content = Content_Check::state();
+			if ( 'baseline' === $content['phase'] ) {
+				$checks[] = 'Content baseline: being built';
+			} else {
+				$checks[] = $content['baseline_done'] ? sprintf( 'Content baseline: %d domain(s)', count( $content['baseline'] ) ) : 'Content baseline: not built yet';
+			}
+		}
+		?>
+		<section class="gl-card gl-alerts">
+			<header class="gl-list-head">
+				<div>
+					<h3>Alerts</h3>
+					<p class="gl-row-desc">Medium and high ones are emailed to <?php echo esc_html( Alerts::recipient() ); ?>. <code>wp greenlight security --format=json</code> lists them all.</p>
+				</div>
+				<span class="gl-count"><?php echo (int) count( $alerts ); ?></span>
+			</header>
+			<?php if ( $checks ) : ?>
+				<ul class="gl-checks"><?php foreach ( $checks as $c ) : ?><li><?php echo self::icon( 'check' ); ?><?php echo esc_html( $c ); ?></li><?php endforeach; ?></ul>
+			<?php endif; ?>
+			<?php if ( $alerts ) : ?>
+				<ul class="gl-alert-list">
+					<?php foreach ( array_slice( $alerts, 0, 25 ) as $a ) : $when = strtotime( $a['time'] ); ?>
+						<li class="gl-alert-item">
+							<span class="gl-sev gl-sev-<?php echo esc_attr( $a['severity'] ); ?>"><?php echo esc_html( $a['severity'] ); ?></span>
+							<div class="gl-alert-body">
+								<p><?php echo esc_html( $a['message'] ); ?></p>
+								<p class="gl-alert-meta">
+									<span><?php echo esc_html( $types[ $a['type'] ] ?? $a['type'] ); ?> · <?php echo esc_html( $when ? human_time_diff( $when ) . ' ago' : $a['time'] ); ?></span>
+									<?php if ( ! empty( $a['url'] ) ) : ?><a href="<?php echo esc_url( $a['url'] ); ?>">Open</a><?php endif; ?>
+									<?php foreach ( (array) ( $a['domains'] ?? array() ) as $d ) : ?>
+										<?php if ( ! Content_Check::is_trusted( $d, $trusted ) ) : ?>
+											<a class="gl-btn gl-btn-soft gl-btn-sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_trust&domain=' . rawurlencode( $d ) ), 'greenlight_trust' ) ); ?>"><?php echo self::icon( 'check' ); ?>Trust <?php echo esc_html( $d ); ?></a>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</p>
+							</div>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+				<div class="gl-btn-row"><a class="gl-btn gl-btn-ghost gl-btn-sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_clear_alerts' ), 'greenlight_clear_alerts' ) ); ?>"><?php echo self::icon( 'trash' ); ?>Clear alerts</a></div>
+			<?php else : ?>
+				<p class="gl-empty">No alerts.</p>
+			<?php endif; ?>
 		</section>
 		<?php
 	}
@@ -410,7 +552,7 @@ class Admin {
 				<?php if ( $notice ) : ?>
 					<div class="gl-toast" role="status"><?php echo self::icon( 'check' ); ?><?php echo esc_html( $notice ); ?></div>
 				<?php endif; ?>
-				<div class="gl-off-banner" role="status"><?php echo self::icon( 'warn' ); ?><div><strong>Greenlight is paused.</strong> Pages are served untouched. Switch on and save to resume.</div></div>
+				<div class="gl-off-banner" role="status"><?php echo self::icon( 'warn' ); ?><div><strong>Greenlight is paused.</strong> Pages are served without speed optimizations; Security settings stay on. Switch on and save to resume.</div></div>
 
 				<nav class="gl-tabs" role="tablist" aria-label="Greenlight settings">
 					<?php foreach ( $nav as $slug => $t ) : ?>
@@ -488,6 +630,7 @@ class Admin {
 							<div class="gl-card gl-side-card gl-tip">
 								<h3>Command line</h3>
 								<p><code>wp greenlight status</code></p>
+								<p><code>wp greenlight security</code></p>
 							</div>
 						</aside>
 					</div>
@@ -503,6 +646,9 @@ class Admin {
 							</div>
 						</div>
 						<?php
+						if ( 'security' === $slug ) {
+							self::render_alerts();
+						}
 						$group = array();
 						$flush = function () use ( &$group, $s, $labels ) {
 							if ( $group ) {

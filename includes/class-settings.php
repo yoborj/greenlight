@@ -57,6 +57,49 @@ class Settings {
 			// Hosting.
 			'purge_on_save'      => 1,
 			'preconnect'         => 1,
+
+			// Security: hardening. These key names are part of `wp greenlight security --format=json`.
+			'headers'            => 1,
+			'hsts'               => 0,
+			'hsts_max_age'       => 300, // Start short: browsers remember HSTS for this long.
+			'csp_report_only'    => 0,
+			'csp_policy'         => "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+			'hide_usernames'     => 1,
+			'xmlrpc_off'         => 1,
+			'file_editor_off'    => 1,
+			'email_obfuscation'  => 1,
+			'app_passwords_off'  => 0, // Zapier and other integrations sign in with these.
+
+			// Security: alerts. Off until switched on: they email the site admin address, often the client's.
+			'alert_email'        => '',
+			'admin_alerts'       => 0,
+			'script_drift'       => 0,
+			'core_file_check'    => 0,
+			'content_check'      => 0,
+			'content_trusted'    => implode( "\n", self::default_trusted_domains() ),
+			'content_spam_words' => "viagra\ncialis\ncasino\ngambling\nbetting\npoker\npayday loan\nporn\nxxx\nescort\nreplica watches\nessay writing\nbuy followers\ncheap pills",
+		);
+	}
+
+	/**
+	 * Domains the content check trusts in embeds and links: the embeds Greenlight holds back (maps,
+	 * Vimeo, YouTube, reviews, booking) plus the forms local-business sites embed.
+	 */
+	public static function default_trusted_domains() {
+		return array(
+			'google.com',
+			'youtube.com',
+			'youtube-nocookie.com',
+			'vimeo.com',
+			'trustpilot.com',
+			'calendly.com',
+			'acuityscheduling.com',
+			'hsforms.com',
+			'hsforms.net',
+			'hubspot.com',
+			'jotform.com',
+			'typeform.com',
+			'elfsight.com',
 		);
 	}
 
@@ -133,7 +176,7 @@ class Settings {
 	}
 
 	/** List settings whose entries can be switched on and off one by one. */
-	const LISTS = array( 'lcp_skip', 'delay_patterns', 'delay_exclusions', 'defer_exclusions', 'delay_iframes' );
+	const LISTS = array( 'lcp_skip', 'delay_patterns', 'delay_exclusions', 'defer_exclusions', 'delay_iframes', 'content_trusted', 'content_spam_words' );
 
 	/** Active entries of a list setting (one per line; a line starting with "#" is switched off). */
 	public static function lines( $key ) {
@@ -195,9 +238,16 @@ class Settings {
 		'Google reCAPTCHA'                 => array( 'recaptcha' ),
 		'Cloudflare Turnstile'             => array( 'turnstile' ),
 		'Google Maps'                      => array( 'google.com/maps', 'maps.google.' ),
-		'Vimeo'                            => array( 'player.vimeo.com' ),
-		'Trustpilot'                       => array( 'widget.trustpilot.com' ),
+		'Vimeo'                            => array( 'player.vimeo.com', 'vimeo.com' ),
+		'Trustpilot'                       => array( 'widget.trustpilot.com', 'trustpilot.com' ),
 		'Calendly'                         => array( 'calendly.com' ),
+		'Google Maps and Forms'            => array( 'google.com' ),
+		'YouTube'                          => array( 'youtube.com', 'youtube-nocookie.com' ),
+		'Acuity Scheduling'                => array( 'acuityscheduling.com' ),
+		'HubSpot forms'                    => array( 'hsforms.com', 'hsforms.net', 'hubspot.com' ),
+		'Jotform'                          => array( 'jotform.com' ),
+		'Typeform'                         => array( 'typeform.com' ),
+		'Elfsight widgets'                 => array( 'elfsight.com' ),
 	);
 
 	/** The service a pattern belongs to, or null for a custom entry. */
@@ -252,6 +302,11 @@ class Settings {
 		foreach ( $defaults as $key => $default ) {
 			if ( is_int( $default ) ) {
 				$out[ $key ] = isset( $input[ $key ] ) ? max( 0, (int) $input[ $key ] ) : 0;
+			} elseif ( 'alert_email' === $key ) {
+				$out[ $key ] = sanitize_email( wp_unslash( $input[ $key ] ?? '' ) );
+			} elseif ( 'csp_policy' === $key ) {
+				// Sent as a header: one line, no line breaks.
+				$out[ $key ] = sanitize_text_field( wp_unslash( $input[ $key ] ?? '' ) ) ?: $default;
 			} elseif ( 'fonts_display' === $key ) {
 				$out[ $key ] = in_array( $input[ $key ] ?? '', array( 'swap', 'optional', 'fallback' ), true ) ? $input[ $key ] : 'swap';
 			} elseif ( in_array( $key, self::LISTS, true ) && isset( $input[ $key . '__items' ] ) ) {
@@ -279,6 +334,7 @@ class Settings {
 		}
 		$out['lazy_eager_count'] = min( 10, $out['lazy_eager_count'] );
 		$out['delay_timeout']    = min( 60, $out['delay_timeout'] );
+		$out['hsts_max_age']     = min( 63072000, $out['hsts_max_age'] );
 		return $out;
 	}
 }

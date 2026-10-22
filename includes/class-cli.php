@@ -4,7 +4,7 @@ namespace Greenlight;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * WP-CLI: wp greenlight status | purge | fonts [--clear] | set <key> <value>
+ * WP-CLI: wp greenlight status | purge | fonts [--clear] | set <key> <value> | security [--format=json]
  */
 class CLI {
 
@@ -71,5 +71,80 @@ class CLI {
 		$all[ $key ] = $value;
 		update_option( Settings::OPTION, Settings::sanitize( $all ) );
 		\WP_CLI::success( "{$key} = " . Settings::get( $key ) );
+	}
+
+	/**
+	 * Security switches, script baseline, trusted domains and alerts.
+	 *
+	 * The JSON is read by the QA app: its shape is a contract (see README), so keep it.
+	 *
+	 * [--format=<format>]
+	 * : table or json.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 * ---
+	 *
+	 * [--reset-baseline]
+	 * : Start a new script baseline: the home page's script domains now, then 24 hours of learning.
+	 *
+	 * [--trust=<domain>]
+	 * : Add a domain to the content check's trusted domains.
+	 *
+	 * [--run-checks]
+	 * : Run the core file check and the content check to the end now, instead of a few seconds at a time.
+	 *
+	 * [--clear-alerts]
+	 * : Delete the stored alerts.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp greenlight security --format=json
+	 *     wp greenlight security --trust=forms.example.com
+	 */
+	public function security( $args, $assoc ) {
+		$json = 'json' === ( $assoc['format'] ?? 'table' );
+		$say  = function ( $msg ) use ( $json ) {
+			if ( ! $json ) {
+				\WP_CLI::success( $msg ); // JSON output stays pure JSON.
+			}
+		};
+		if ( isset( $assoc['reset-baseline'] ) ) {
+			$state = Drift::reset();
+			$say( 'New script baseline: ' . count( $state['baseline'] ) . ' domain(s) from the home page; learning for 24 hours.' );
+		}
+		if ( ! empty( $assoc['trust'] ) ) {
+			$domain = Content_Check::trust( $assoc['trust'] );
+			if ( ! $domain ) {
+				\WP_CLI::error( 'Not a domain: ' . $assoc['trust'] );
+			}
+			$say( "Trusted {$domain}." );
+		}
+		if ( isset( $assoc['clear-alerts'] ) ) {
+			Alerts::clear();
+			$say( 'Alerts cleared.' );
+		}
+		if ( isset( $assoc['run-checks'] ) ) {
+			Alerts::run_now();
+			$say( 'Checks finished.' );
+		}
+
+		$report = Security::report();
+		if ( $json ) {
+			\WP_CLI::line( wp_json_encode( $report, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+			return;
+		}
+		\WP_CLI::line( 'Greenlight ' . $report['greenlight_version'] . ' security' );
+		foreach ( $report['features'] as $key => $on ) {
+			\WP_CLI::line( sprintf( '  %-20s %s', $key, $on ? 'on' : 'off' ) );
+		}
+		\WP_CLI::line( 'Script baseline: ' . ( implode( ', ', $report['script_baseline'] ) ?: 'empty' ) );
+		\WP_CLI::line( 'Trusted embed domains: ' . implode( ', ', $report['trusted_embed_domains'] ) );
+		\WP_CLI::line( 'Alerts: ' . count( $report['alerts'] ) );
+		if ( $report['alerts'] ) {
+			\WP_CLI\Utils\format_items( 'table', $report['alerts'], array( 'time', 'severity', 'type', 'message' ) );
+		}
 	}
 }
