@@ -9,12 +9,16 @@ Since 0.2.0 it also has a **Security** tab: the hardening a managed host leaves 
 alerts when something changes. Firewall, DDoS protection, backups and malware scanning stay with the
 host; matching plugins against vulnerability feeds belongs in the QA app.
 
-Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.2.0**
-([download](https://github.com/yoborj/greenlight/releases/tag/v0.2.0), [changelog](CHANGELOG.md)).
+Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.3.0**
+([download](https://github.com/yoborj/greenlight/releases/tag/v0.3.0), [changelog](CHANGELOG.md)).
 
 ![Greenlight's Overview: optimizations switched on, one tile per area, compare a page, clear caches](docs/greenlight-overview.png)
 
 ![The Scripts tab: delay switch, 10-second fallback, and one row per service in the delay list](docs/greenlight-scripts.png)
+
+![The Security tab: alerts with severity, a Trust button per domain, and where each check stands](docs/greenlight-security.png)
+
+![Security switches: hide usernames, XML-RPC, file editor, email obfuscation, application passwords, custom login URL](docs/greenlight-security-settings.png)
 
 ## What it does
 
@@ -51,6 +55,16 @@ One switch per feature. The names are the setting keys for `wp greenlight set` a
 | `file_editor_off` | on | Defines `DISALLOW_FILE_EDIT`, unless wp-config.php already defines it either way. |
 | `email_obfuscation` | on | Email addresses in the page text and in `href="mailto:…"` are encoded with WordPress's `antispambot()` inside Greenlight's HTML pass. Script and style contents, comments and every other attribute are untouched. Visitors see no difference. |
 | `app_passwords_off` | off | Turns off application passwords. Integrations such as Zapier sign in with them, so check before switching on. |
+| `hide_login` | off | Custom login URL, the job WPS Hide Login does: the login page moves to `/<login_slug>/`. `wp-login.php` shows the theme's 404, `/login` and `/admin` no longer lead to it, and logged-out visits to wp-admin go to `/404/` (admin-ajax.php, admin-post.php and password-protected posts keep working). Every login, logout and password-reset link WordPress makes, emails included, uses the new address. |
+
+**Custom login URL.** Set the address with `login_slug` (letters, numbers and dashes; `login`,
+`admin`, `wp-admin` and similar are refused). Left empty, Greenlight picks one: WPS Hide Login's address
+when that plugin was in use, so the URL people know keeps working, otherwise `sign-in-` plus six random
+characters. The Security tab and `wp greenlight status` show the current address. Moving a site off
+WPS Hide Login: switch this on, check the address, then deactivate WPS Hide Login (the Overview lists it
+as an overlapping plugin while both are on). Locked out: `wp greenlight set hide_login 0` brings
+`wp-login.php` back. If the login page misbehaves behind a host's page cache, ask the host to exclude
+the address. `hide_login` isn't in the `wp greenlight security` JSON, which keeps schema 1 unchanged.
 
 The Security tab doesn't follow the master switch or `?greenlight=off` (anyone could add that to a URL to
 strip the headers). The page scope is the same as the speed features: front-end HTML pages only.
@@ -128,7 +142,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with the speed features off, for before/after checks.
   The Security tab's features stay on.
 - The end of every page's source has a summary, e.g.
-  `<!-- Greenlight 0.2.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
+  `<!-- Greenlight 0.3.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize),
   or needs something a Security switch turns off (Jetpack and XML-RPC).
@@ -160,6 +174,8 @@ wp greenlight set xmlrpc_off 0
 wp greenlight set file_editor_off 1
 wp greenlight set email_obfuscation 1
 wp greenlight set app_passwords_off 1
+wp greenlight set login_slug clinic-door
+wp greenlight set hide_login 1
 wp greenlight set alert_email alerts@example.com
 wp greenlight set admin_alerts 1
 wp greenlight set script_drift 1
@@ -182,7 +198,7 @@ With `--format=json` the output is only the JSON (the options above print nothin
 contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 
 ```json
-{"greenlight_version":"0.2.0","schema":1,
+{"greenlight_version":"0.3.0","schema":1,
  "features":{"headers":true,"hsts":false,"csp_report_only":false,"hide_usernames":true,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":true,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},
  "script_baseline":["googletagmanager.com"],
  "trusted_embed_domains":["calendly.com","google.com","jotform.com","vimeo.com","youtube.com"],

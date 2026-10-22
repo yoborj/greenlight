@@ -69,6 +69,8 @@ class Settings {
 			'file_editor_off'    => 1,
 			'email_obfuscation'  => 1,
 			'app_passwords_off'  => 0, // Zapier and other integrations sign in with these.
+			'hide_login'         => 0, // Moves the login page: off until someone chooses to.
+			'login_slug'         => '',
 
 			// Security: alerts. Off until switched on: they email the site admin address, often the client's.
 			'alert_email'        => '',
@@ -304,6 +306,8 @@ class Settings {
 				$out[ $key ] = isset( $input[ $key ] ) ? max( 0, (int) $input[ $key ] ) : 0;
 			} elseif ( 'alert_email' === $key ) {
 				$out[ $key ] = sanitize_email( wp_unslash( $input[ $key ] ?? '' ) );
+			} elseif ( 'login_slug' === $key ) {
+				$out[ $key ] = sanitize_title( wp_unslash( $input[ $key ] ?? '' ) );
 			} elseif ( 'csp_policy' === $key ) {
 				// Sent as a header: one line, no line breaks.
 				$out[ $key ] = sanitize_text_field( wp_unslash( $input[ $key ] ?? '' ) ) ?: $default;
@@ -335,6 +339,10 @@ class Settings {
 		$out['lazy_eager_count'] = min( 10, $out['lazy_eager_count'] );
 		$out['delay_timeout']    = min( 60, $out['delay_timeout'] );
 		$out['hsts_max_age']     = min( 63072000, $out['hsts_max_age'] );
+		if ( $out['hide_login'] && ! Hide_Login::valid( $out['login_slug'] ) ) {
+			// No login address, or one that isn't allowed: pick one rather than leave the switch doing nothing.
+			$out['login_slug'] = Hide_Login::suggest();
+		}
 		return $out;
 	}
 }

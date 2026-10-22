@@ -194,5 +194,12 @@
 		} );
 	}
 
+	/* On narrow screens the tab bar scrolls sideways: bring the open tab into view. */
+	var nav = $( '.gl-tabs' );
+	var open = $( '[role="tab"][aria-selected="true"]' );
+	if ( nav && open && nav.scrollWidth > nav.clientWidth ) {
+		nav.scrollLeft = Math.max( 0, open.offsetLeft + open.offsetWidth - nav.clientWidth + 12 );
+	}
+
 	refresh();
 } )();

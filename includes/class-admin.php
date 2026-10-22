@@ -82,7 +82,7 @@ class Admin {
 			wp_die( 'Not allowed.' );
 		}
 		$state = Drift::reset();
-		set_transient( 'greenlight_notice_' . get_current_user_id(), 'New script baseline: ' . count( $state['baseline'] ) . ' domain(s) from the home page. Greenlight learns the rest from page views for the next 24 hours.', 60 );
+		set_transient( 'greenlight_notice_' . get_current_user_id(), 'New script baseline: ' . self::domains( count( $state['baseline'] ) ) . ' from the home page. Greenlight learns the rest from page views for the next 24 hours.', 60 );
 		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=security' ) );
 		exit;
 	}
@@ -124,6 +124,9 @@ class Admin {
 			if ( defined( $c[1] ) ) {
 				$found[ $name ] = $c[2];
 			}
+		}
+		if ( Settings::get( 'hide_login' ) && defined( 'WPS_HIDE_LOGIN_VERSION' ) ) {
+			$found['WPS Hide Login'] = 'Greenlight\'s “Custom login URL” does the same job: deactivate WPS Hide Login';
 		}
 		if ( Settings::get( 'xmlrpc_off' ) && defined( 'JETPACK__VERSION' ) ) {
 			$found['Jetpack'] = 'it needs XML-RPC to connect to WordPress.com: switch off “Turn off XML-RPC” under Security, or expect Jetpack to disconnect';
@@ -241,6 +244,8 @@ class Admin {
 					'file_editor_off'    => array( 'check', 'Turn off the file editor', 'No editing theme and plugin code in wp-admin.', Security::file_edit_preset() ? array( 'badge' => array( 'info', 'Already set in wp-config.php' ) ) : array() ),
 					'email_obfuscation'  => array( 'check', 'Hide email addresses from bots', 'Addresses in the text and in mailto: links are encoded. Visitors see no difference.' ),
 					'app_passwords_off'  => array( 'check', 'Turn off application passwords', 'Integrations such as Zapier sign in with these.', array( 'badge' => array( 'warn', 'Check integrations first' ) ) ),
+					'hide_login'         => array( 'check', 'Custom login URL', 'Log in at the address below; wp-login.php shows a 404 and wp-admin sends logged-out visitors away. Replaces WPS Hide Login.', array( 'badge' => array( 'warn', 'Bookmark the new address' ) ) ),
+					'login_slug'         => array( 'text', 'Login address', Hide_Login::url() ? 'Now: ' . Hide_Login::url() . ' · Locked out? wp greenlight set hide_login 0' : 'Letters, numbers and dashes. Empty: Greenlight picks one (WPS Hide Login\'s, if it was in use).', array( 'requires' => 'hide_login', 'placeholder' => 'e.g. clinic-login' ) ),
 					'alert_email'        => array( 'text', 'Send alerts to', 'Medium and high alerts, grouped into one email per request. Empty: the site admin email.', array( 'type' => 'email', 'placeholder' => get_option( 'admin_email' ) ) ),
 					'admin_alerts'       => array( 'check', 'Email on admin changes', 'New or promoted administrators, plugins installed or activated, theme switched.' ),
 					'script_drift'       => array( 'check', 'Alert on new script domains', 'Learns where pages load scripts from, then alerts once for each new domain.', array( 'action' => array( 'Reset baseline', wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_reset_baseline' ), 'greenlight_reset_baseline' ) ) ) ),
@@ -414,6 +419,11 @@ class Admin {
 		<?php
 	}
 
+	/** "no domains yet", "1 domain", "12 domains". */
+	private static function domains( $n ) {
+		return $n ? $n . ( 1 === $n ? ' domain' : ' domains' ) : 'no domains yet';
+	}
+
 	/** The Security tab's alerts (newest first, "Trust" buttons for content-check domains) and where each check stands. */
 	private static function render_alerts() {
 		$alerts  = Alerts::all();
@@ -425,9 +435,9 @@ class Admin {
 			if ( ! $drift ) {
 				$checks[] = 'Script baseline: starts with the next page view';
 			} elseif ( $drift['learning_until'] > time() ) {
-				$checks[] = sprintf( 'Script baseline: %d domain(s), learning for %s more', count( $drift['baseline'] ), human_time_diff( $drift['learning_until'] ) );
+				$checks[] = sprintf( 'Script baseline: %s, learning for %s more', self::domains( count( $drift['baseline'] ) ), human_time_diff( $drift['learning_until'] ) );
 			} else {
-				$checks[] = sprintf( 'Script baseline: %d domain(s)', count( $drift['baseline'] ) );
+				$checks[] = 'Script baseline: ' . self::domains( count( $drift['baseline'] ) );
 			}
 		}
 		if ( Settings::get( 'core_file_check' ) ) {
@@ -445,7 +455,7 @@ class Admin {
 			if ( 'baseline' === $content['phase'] ) {
 				$checks[] = 'Content baseline: being built';
 			} else {
-				$checks[] = $content['baseline_done'] ? sprintf( 'Content baseline: %d domain(s)', count( $content['baseline'] ) ) : 'Content baseline: not built yet';
+				$checks[] = $content['baseline_done'] ? 'Content baseline: ' . self::domains( count( $content['baseline'] ) ) : 'Content baseline: not built yet';
 			}
 		}
 		?>

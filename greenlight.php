@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Greenlight
  * Description:       Front-end speed fixes that move Core Web Vitals: hero image priority, self-hosted fonts, delayed third-party scripts, smarter lazy-loading, WordPress cleanup and host cache purging. Plus the security hardening and change alerts a managed host leaves to the site. No page cache: managed hosts like WP Engine already cache pages.
- * Version:           0.2.0
+ * Version:           0.3.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GREENLIGHT_VERSION', '0.2.0' );
+define( 'GREENLIGHT_VERSION', '0.3.0' );
 define( 'GREENLIGHT_FILE', __FILE__ );
 define( 'GREENLIGHT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GREENLIGHT_URL', plugin_dir_url( __FILE__ ) );
@@ -28,12 +28,14 @@ require_once GREENLIGHT_DIR . 'includes/class-purge.php';
 require_once GREENLIGHT_DIR . 'includes/class-optimizer.php';
 require_once GREENLIGHT_DIR . 'includes/class-admin.php';
 require_once GREENLIGHT_DIR . 'includes/class-security.php';
+require_once GREENLIGHT_DIR . 'includes/class-hide-login.php';
 require_once GREENLIGHT_DIR . 'includes/class-alerts.php';
 require_once GREENLIGHT_DIR . 'includes/class-drift.php';
 require_once GREENLIGHT_DIR . 'includes/class-core-check.php';
 require_once GREENLIGHT_DIR . 'includes/class-content-check.php';
 
 Greenlight\Security::init(); // First: it may define DISALLOW_FILE_EDIT or stop an XML-RPC request.
+Greenlight\Hide_Login::init();
 Greenlight\Alerts::init();
 Greenlight\Content_Check::init();
 Greenlight\Cleanup::init();

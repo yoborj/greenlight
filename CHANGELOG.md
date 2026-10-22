@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0 — 2026-10-22
+
+### Added
+- **Custom login URL** on the Security tab (off by default), the job WPS Hide Login does: the login page
+  moves to `/<login_slug>/`; `wp-login.php` shows the theme's 404; `/login` and `/admin` no longer lead
+  to it; logged-out visits to wp-admin go to `/404/`. Login, logout, lost-password and reset-email links
+  all use the new address; admin-ajax.php, admin-post.php and password-protected posts keep working.
+  An empty address reuses WPS Hide Login's (so existing bookmarks keep working) or picks a random one;
+  reserved words such as `login` and `admin` are refused. WPS Hide Login is listed as an overlapping
+  plugin while both are on. `wp greenlight set hide_login 0` undoes it from the command line.
+- `wp greenlight status` shows the login page address.
+
+### Changed
+- The settings tabs are a little more compact, so all eight fit on a 1440px screen; on narrower screens
+  the open tab scrolls into view.
+- Baseline counts read "1 domain" / "no domains yet" instead of "domain(s)".
+- README screenshots show 0.3.0 and the Security tab.
+
+### Unchanged
+- `wp greenlight security --format=json` (schema 1). The new `hide_login` setting is not in its
+  `features`.
+
 ## 0.2.0 — 2026-10-22
 
 ### Added

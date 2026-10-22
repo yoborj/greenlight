@@ -17,6 +17,7 @@ class CLI {
 		\WP_CLI::line( 'Host page cache: ' . ( Purge::host() ?: 'none detected (Greenlight has no page cache of its own)' ) );
 		$fonts = glob( Fonts::dir()['path'] . '*/meta.json' ) ?: array();
 		\WP_CLI::line( 'Self-hosted font sets: ' . count( $fonts ) );
+		\WP_CLI::line( 'Login page: ' . ( Hide_Login::url() ?: wp_login_url() ) );
 		foreach ( $s as $k => $v ) {
 			if ( is_int( $v ) ) {
 				\WP_CLI::line( sprintf( '  %-20s %s', $k, $v ) );
