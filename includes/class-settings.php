@@ -70,7 +70,7 @@ class Settings {
 			'email_obfuscation'  => 1,
 			'app_passwords_off'  => 0, // Zapier and other integrations sign in with these.
 			'hide_login'         => 0, // Moves the login page: off until someone chooses to.
-			'login_slug'         => '',
+			'login_slug'         => 'backend-login',
 
 			// Security: alerts. Off until switched on: they email the site admin address, often the client's.
 			'alert_email'        => '',

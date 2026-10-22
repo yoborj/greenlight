@@ -11,6 +11,9 @@ defined( 'ABSPATH' ) || exit;
  */
 class Hide_Login {
 
+	/** The login address unless one is set: /backend-login/. */
+	const DEFAULT_SLUG = 'backend-login';
+
 	/** Never usable as the login address: WordPress's own paths and the words bots try first. */
 	const RESERVED = array( 'admin', 'login', 'wp-admin', 'wp-login', 'wp-login-php', 'dashboard', 'wp-content', 'wp-includes', 'wp-json', 'feed', 'xmlrpc', 'sitemap', 'wp-sitemap' );
 
@@ -39,10 +42,9 @@ class Hide_Login {
 		return is_string( $slug ) && preg_match( '/^[a-z0-9][a-z0-9-]{2,49}$/', $slug ) && ! in_array( $slug, self::RESERVED, true );
 	}
 
-	/** A fresh address: WPS Hide Login's when it was in use (the URL people know keeps working), otherwise a random one. */
+	/** The address to use when none (or one that isn't allowed) is set. */
 	public static function suggest() {
-		$whl = sanitize_title( (string) get_option( 'whl_page', '' ) );
-		return self::valid( $whl ) ? $whl : 'sign-in-' . strtolower( wp_generate_password( 6, false ) );
+		return self::DEFAULT_SLUG;
 	}
 
 	/** The login page's address, or null while the feature is off. */

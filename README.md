@@ -55,14 +55,14 @@ One switch per feature. The names are the setting keys for `wp greenlight set` a
 | `file_editor_off` | on | Defines `DISALLOW_FILE_EDIT`, unless wp-config.php already defines it either way. |
 | `email_obfuscation` | on | Email addresses in the page text and in `href="mailto:…"` are encoded with WordPress's `antispambot()` inside Greenlight's HTML pass. Script and style contents, comments and every other attribute are untouched. Visitors see no difference. |
 | `app_passwords_off` | off | Turns off application passwords. Integrations such as Zapier sign in with them, so check before switching on. |
-| `hide_login` | off | Custom login URL, the job WPS Hide Login does: the login page moves to `/<login_slug>/`. `wp-login.php` shows the theme's 404, `/login` and `/admin` no longer lead to it, and logged-out visits to wp-admin go to `/404/` (admin-ajax.php, admin-post.php and password-protected posts keep working). Every login, logout and password-reset link WordPress makes, emails included, uses the new address. |
+| `hide_login` | off | Custom login URL, the job WPS Hide Login does: the login page moves to `/backend-login/` (or `/<login_slug>/`). `wp-login.php` shows the theme's 404, `/login` and `/admin` no longer lead to it, and logged-out visits to wp-admin go to `/404/` (admin-ajax.php, admin-post.php and password-protected posts keep working). Every login, logout and password-reset link WordPress makes, emails included, uses the new address. |
 
-**Custom login URL.** Set the address with `login_slug` (letters, numbers and dashes; `login`,
-`admin`, `wp-admin` and similar are refused). Left empty, Greenlight picks one: WPS Hide Login's address
-when that plugin was in use, so the URL people know keeps working, otherwise `sign-in-` plus six random
-characters. The Security tab and `wp greenlight status` show the current address. Moving a site off
-WPS Hide Login: switch this on, check the address, then deactivate WPS Hide Login (the Overview lists it
-as an overlapping plugin while both are on). Locked out: `wp greenlight set hide_login 0` brings
+**Custom login URL.** The default address is **`/backend-login/`**. Change it with `login_slug`
+(letters, numbers and dashes); an empty address, or one that's refused (`login`, `admin`, `wp-admin` and
+similar), falls back to `backend-login`. The Security tab and `wp greenlight status` show the current
+address. Moving a site off WPS Hide Login: to keep its address (and people's bookmarks), set
+`login_slug` to WPS Hide Login's slug first; then switch this on, check the address, and deactivate WPS
+Hide Login (the Overview lists it as an overlapping plugin while both are on). Locked out: `wp greenlight set hide_login 0` brings
 `wp-login.php` back. If the login page misbehaves behind a host's page cache, ask the host to exclude
 the address. `hide_login` isn't in the `wp greenlight security` JSON, which keeps schema 1 unchanged.
 
@@ -174,8 +174,8 @@ wp greenlight set xmlrpc_off 0
 wp greenlight set file_editor_off 1
 wp greenlight set email_obfuscation 1
 wp greenlight set app_passwords_off 1
-wp greenlight set login_slug clinic-door
-wp greenlight set hide_login 1
+wp greenlight set hide_login 1                 # login at /backend-login/
+wp greenlight set login_slug clinic-door       # or another address
 wp greenlight set alert_email alerts@example.com
 wp greenlight set admin_alerts 1
 wp greenlight set script_drift 1

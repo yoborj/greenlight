@@ -7,8 +7,8 @@
   moves to `/<login_slug>/`; `wp-login.php` shows the theme's 404; `/login` and `/admin` no longer lead
   to it; logged-out visits to wp-admin go to `/404/`. Login, logout, lost-password and reset-email links
   all use the new address; admin-ajax.php, admin-post.php and password-protected posts keep working.
-  An empty address reuses WPS Hide Login's (so existing bookmarks keep working) or picks a random one;
-  reserved words such as `login` and `admin` are refused. WPS Hide Login is listed as an overlapping
+  The default address is `/backend-login/` (`login_slug`); an empty address, or a reserved word such as
+  `login` or `admin`, falls back to it. WPS Hide Login is listed as an overlapping
   plugin while both are on. `wp greenlight set hide_login 0` undoes it from the command line.
 - `wp greenlight status` shows the login page address.
 
