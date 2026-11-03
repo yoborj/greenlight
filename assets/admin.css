@@ -385,3 +385,28 @@ body.toplevel_page_greenlight #wpfooter { display: none; }
 .gl-sev-high { background: #fdecea; color: var(--gl-danger); border: 1px solid #f7c9c4; }
 .gl-sev-medium { background: var(--gl-warn-bg); color: var(--gl-warn); border: 1px solid var(--gl-warn-line); }
 .gl-sev-low { background: var(--gl-line-soft); color: var(--gl-muted); border: 1px solid var(--gl-line); }
+
+/* Overview: real visitors (CrUX) */
+.gl-field { padding: 20px 22px; margin-bottom: 16px; }
+.gl-field-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.gl-field-head h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.gl-field-head p, .gl-field-note { color: var(--gl-muted); }
+.gl-field-error { color: var(--gl-danger); }
+.gl-wrap .gl-link { padding: 0; border: 0; background: none; color: var(--gl-green-dark); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.gl-field-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.gl-field-col { padding: 14px 16px; border: 1px solid var(--gl-line-soft); border-radius: 12px; }
+.gl-field-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gl-field-scope { color: var(--gl-faint); font-size: 12px; }
+.gl-badge-good { background: var(--gl-mint-soft); color: #0f5130; border: 1px solid #bfe9cf; }
+.gl-field-metrics { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gl-field-metrics li { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.gl-field-metrics li::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: #cfd8d3; align-self: center; }
+.gl-field-metrics .gl-rate-good::before { background: var(--gl-green); }
+.gl-field-metrics .gl-rate-needs-improvement::before { background: #f59e0b; }
+.gl-field-metrics .gl-rate-poor::before { background: var(--gl-danger); }
+.gl-field-name { width: 44px; font: 700 11px/1.6 var(--gl-mono); color: var(--gl-muted); letter-spacing: .03em; }
+.gl-field-value { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gl-field-metrics .is-minor .gl-field-value { font-size: 13.5px; font-weight: 600; color: var(--gl-muted); }
+.gl-field-was { color: var(--gl-faint); font-size: 12.5px; }
+.gl-field-foot { margin-top: 12px !important; color: var(--gl-faint); font-size: 12.5px !important; }
+@media (max-width: 782px) { .gl-field-cols { grid-template-columns: minmax(0, 1fr); } }

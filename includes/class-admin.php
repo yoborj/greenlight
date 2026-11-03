@@ -18,6 +18,7 @@ class Admin {
 		add_action( 'admin_post_greenlight_reset_baseline', array( __CLASS__, 'handle_reset_baseline' ) );
 		add_action( 'admin_post_greenlight_trust', array( __CLASS__, 'handle_trust' ) );
 		add_action( 'admin_post_greenlight_clear_alerts', array( __CLASS__, 'handle_clear_alerts' ) );
+		add_action( 'admin_post_greenlight_field_data', array( __CLASS__, 'handle_field_data' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( GREENLIGHT_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
@@ -104,6 +105,23 @@ class Admin {
 		Alerts::clear();
 		set_transient( 'greenlight_notice_' . get_current_user_id(), 'Alerts cleared.', 60 );
 		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=security' ) );
+		exit;
+	}
+
+	/** "Check now": one PageSpeed Insights run in the background (mobile, then desktop), not in this request. */
+	public static function handle_field_data() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_field_data' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		if ( Field_Data::ready() ) {
+			wp_schedule_single_event( time(), Field_Data::DAILY, array( 'now' ) );
+			spawn_cron();
+			$notice = 'Checking real-user scores in the background. Reload in a minute or two.';
+		} else {
+			$notice = 'Add a PageSpeed Insights API key under Hosting first.';
+		}
+		set_transient( 'greenlight_notice_' . get_current_user_id(), $notice, 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight' ) );
 		exit;
 	}
 
@@ -221,11 +239,14 @@ class Admin {
 			'hosting' => array(
 				'title'   => 'Hosting',
 				'icon'    => 'hosting',
-				'intro'   => 'Keeps your host\'s page cache fresh.',
+				'intro'   => 'Keeps your host\'s page cache fresh, and measures real visitors.',
 				'metrics' => array( 'FCP' ),
 				'fields'  => array(
-					'purge_on_save' => array( 'check', 'Clear host cache on changes', 'After posts, menus, themes or plugins change.' ),
-					'preconnect'    => array( 'check', 'Preconnect to first-screen servers', 'Up to three servers.' ),
+					'purge_on_save'  => array( 'check', 'Clear host cache on changes', 'After posts, menus, themes or plugins change.' ),
+					'preconnect'     => array( 'check', 'Preconnect to first-screen servers', 'Up to three servers.' ),
+					'field_data'     => array( 'check', 'Real-user scores on the Overview', 'Core Web Vitals from Chrome users (CrUX) via PageSpeed Insights, checked once a day by cron. Never on page views.' ),
+					'psi_api_key'    => array( 'text', 'PageSpeed Insights API key', 'Free from Google Cloud: enable the PageSpeed Insights API, then create an API key. Google no longer answers without one.', array( 'requires' => 'field_data', 'type' => 'password', 'placeholder' => 'AIza…' ) ),
+					'field_data_url' => array( 'text', 'Page to measure', 'Empty: this site\'s home page. On staging, enter the live site\'s address.', array( 'requires' => 'field_data', 'type' => 'url', 'placeholder' => home_url( '/' ) ) ),
 				),
 			),
 			'security' => array(
@@ -419,6 +440,72 @@ class Admin {
 		<?php
 	}
 
+	/**
+	 * Overview card: what Chrome users experience (CrUX, 75th percentile of 28 days), mobile and desktop,
+	 * and how it compares with the oldest day kept. Read from the daily check; nothing is fetched here.
+	 */
+	private static function render_field_data() {
+		$f = Field_Data::summary();
+		if ( ! $f['enabled'] ) {
+			return;
+		}
+		$check  = wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_field_data' ), 'greenlight_field_data' );
+		$names  = array( 'lcp' => 'LCP', 'inp' => 'INP', 'cls' => 'CLS', 'fcp' => 'FCP', 'ttfb' => 'TTFB' );
+		$labels = array( 'good' => 'Good', 'needs-improvement' => 'Needs improvement', 'poor' => 'Poor' );
+		?>
+		<section class="gl-card gl-field">
+			<header class="gl-field-head">
+				<div>
+					<h2>Real visitors</h2>
+					<p>Core Web Vitals from Chrome users (CrUX): the 75th percentile of the last 28 days.</p>
+				</div>
+				<?php if ( $f['has_key'] ) : ?><a class="gl-btn gl-btn-ghost gl-btn-sm" href="<?php echo esc_url( $check ); ?>"><?php echo self::icon( 'refresh' ); ?>Check now</a><?php endif; ?>
+			</header>
+			<?php if ( ! $f['has_key'] ) : ?>
+				<p class="gl-field-note">Add a free PageSpeed Insights API key under <button type="button" class="gl-link" data-goto="hosting">Hosting</button> to see how real visitors experience this site. Google no longer answers without one.</p>
+			<?php elseif ( $f['error'] && ! $f['mobile'] && ! $f['desktop'] ) : ?>
+				<p class="gl-field-note gl-field-error"><?php echo esc_html( $f['error'] ); ?></p>
+			<?php elseif ( ! $f['updated'] ) : ?>
+				<p class="gl-field-note">The first check runs within a day, or now with <strong>Check now</strong>.</p>
+			<?php else : ?>
+				<div class="gl-field-cols">
+					<?php foreach ( array( 'mobile' => 'Mobile', 'desktop' => 'Desktop' ) as $form => $title ) : $d = $f[ $form ]; ?>
+						<div class="gl-field-col">
+							<div class="gl-field-title">
+								<strong><?php echo esc_html( $title ); ?></strong>
+								<?php if ( ! $d ) : ?>
+									<span class="gl-badge gl-badge-info">Not enough Chrome users yet</span>
+								<?php elseif ( null !== $d['passes'] ) : ?>
+									<span class="gl-badge <?php echo $d['passes'] ? 'gl-badge-good' : 'gl-badge-warn'; ?>"><?php echo $d['passes'] ? 'Passes Core Web Vitals' : 'Fails Core Web Vitals'; ?></span>
+								<?php endif; ?>
+								<?php if ( $d && 'origin' === $d['scope'] ) : ?><span class="gl-field-scope">whole site</span><?php endif; ?>
+							</div>
+							<?php if ( $d ) : ?>
+								<ul class="gl-field-metrics">
+									<?php foreach ( $names as $key => $name ) : if ( ! isset( $d['metrics'][ $key ] ) ) { continue; } $m = $d['metrics'][ $key ]; $first = $f['first'][ $form ][ $key ] ?? null; ?>
+										<li class="gl-rate-<?php echo esc_attr( $m['rating'] ?: 'none' ); ?><?php echo in_array( $key, array( 'fcp', 'ttfb' ), true ) ? ' is-minor' : ''; ?>" title="<?php echo esc_attr( $labels[ $m['rating'] ] ?? '' ); ?>">
+											<span class="gl-field-name"><?php echo esc_html( $name ); ?></span>
+											<span class="gl-field-value"><?php echo esc_html( Field_Data::format( $key, $m['p75'] ) ); ?></span>
+											<?php if ( null !== $first && (string) $first !== (string) $m['p75'] && in_array( $key, array( 'lcp', 'inp', 'cls' ), true ) ) : ?>
+												<span class="gl-field-was">was <?php echo esc_html( Field_Data::format( $key, $first ) ); ?></span>
+											<?php endif; ?>
+										</li>
+									<?php endforeach; ?>
+								</ul>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<p class="gl-field-foot">
+					<?php echo esc_html( preg_replace( '#^https?://#', '', $f['url'] ) ); ?> · checked <?php echo esc_html( human_time_diff( strtotime( $f['updated'] ) ) ); ?> ago
+					<?php if ( ! empty( $f['first'] ) ) : $since = reset( $f['first'] ); ?> · “was” = <?php echo esc_html( mysql2date( get_option( 'date_format' ), $since['date'] ) ); ?><?php endif; ?>
+					<?php if ( $f['error'] ) : ?> · <span class="gl-field-error"><?php echo esc_html( $f['error'] ); ?></span><?php endif; ?>
+				</p>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
 	/** "no domains yet", "1 domain", "12 domains". */
 	private static function domains( $n ) {
 		return $n ? $n . ( 1 === $n ? ' domain' : ' domains' ) : 'no domains yet';
@@ -588,6 +675,7 @@ class Admin {
 									<p>Safe defaults. Pick an area to fine-tune it.</p>
 								</div>
 							</div>
+							<?php self::render_field_data(); ?>
 							<?php if ( $conflicts ) : ?>
 								<div class="gl-card gl-alert">
 									<?php echo self::icon( 'warn' ); ?>
@@ -641,6 +729,7 @@ class Admin {
 								<h3>Command line</h3>
 								<p><code>wp greenlight status</code></p>
 								<p><code>wp greenlight security</code></p>
+								<p><code>wp greenlight scores</code></p>
 							</div>
 						</aside>
 					</div>

@@ -9,10 +9,10 @@ Since 0.2.0 it also has a **Security** tab: the hardening a managed host leaves 
 alerts when something changes. Firewall, DDoS protection, backups and malware scanning stay with the
 host; matching plugins against vulnerability feeds belongs in the QA app.
 
-Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.3.0**
-([download](https://github.com/yoborj/greenlight/releases/tag/v0.3.0), [changelog](CHANGELOG.md)).
+Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.4.0**
+([download](https://github.com/yoborj/greenlight/releases/tag/v0.4.0), [changelog](CHANGELOG.md)).
 
-![Greenlight's Overview: optimizations switched on, one tile per area, compare a page, clear caches](docs/greenlight-overview.png)
+![Greenlight's Overview: optimizations switched on, real visitors' Core Web Vitals for mobile and desktop (sample data), compare a page, clear caches](docs/greenlight-overview.png)
 
 ![The Scripts tab: delay switch, 10-second fallback, and one row per service in the delay list](docs/greenlight-scripts.png)
 
@@ -37,6 +37,8 @@ Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.3.0**
 | Cleanup | small wins | Emoji script, embed discovery, header clutter, Dashicons for visitors, front-end Heartbeat. Optional: jQuery Migrate, block CSS on classic themes. |
 | Host cache purge | — | WP Engine (memcached, page cache, CDN), SiteGround, Kinsta, Pantheon, object cache; on save, from the toolbar, or `wp greenlight purge`. |
 | Security | — | Hardening and change alerts, below. |
+| Real-user scores | — | The Overview shows Core Web Vitals from real Chrome visitors (CrUX), mobile and desktop, checked once a day: proof the fixes work. Below. |
+| Abilities (MCP) | — | On WordPress 6.9+, Claude and other MCP clients can read Greenlight's status and security report, compare a page with and without it, and clear caches. Below. |
 
 ## Security
 
@@ -114,8 +116,8 @@ served unchanged.
 ## Settings
 
 **Greenlight** (its own item in the wp-admin menu) opens on an **Overview**: how many optimizations are on, one tile per area
-(with the PageSpeed metrics it helps), host cache and font status, overlapping plugins, Clear caches,
-and **Compare a page** (opens any page with and without `?greenlight=off`). The header holds the
+(with the PageSpeed metrics it helps), real visitors' Core Web Vitals, host cache and font status,
+overlapping plugins, Clear caches, and **Compare a page** (opens any page with and without `?greenlight=off`). The header holds the
 master switch. Tabs: **Hero image · Images & embeds · Fonts · Scripts · Cleanup · Hosting · Security**.
 
 Every feature has its own switch, and every entry in the lists (scripts to delay, never-delay
@@ -142,7 +144,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with the speed features off, for before/after checks.
   The Security tab's features stay on.
 - The end of every page's source has a summary, e.g.
-  `<!-- Greenlight 0.3.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
+  `<!-- Greenlight 0.4.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize),
   or needs something a Security switch turns off (Jetpack and XML-RPC).
@@ -150,6 +152,59 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
   those sites switch off "Google Tag Manager" under Scripts → Scripts to delay.
 - Holding tracking scripts back is not cookie consent. When testing consent, scroll the page first
   (without clicking the banner), or use `?greenlight=off`.
+
+## Real-user scores
+
+The Overview's **Real visitors** card shows what Chrome users actually experience: LCP, INP and CLS (plus
+FCP and TTFB) at the 75th percentile of the last 28 days, from the Chrome UX Report via the PageSpeed
+Insights API. Mobile and desktop each say whether the page passes Core Web Vitals, and each metric shows
+its value on the oldest day kept ("was 3.9 s"), so the effect of Greenlight shows up as the 28-day window
+moves past the install date. When the page itself has too few Chrome visitors, CrUX's whole-site
+numbers are used and labelled; small sites may show "Not enough Chrome users yet".
+
+- **API key required.** Google's PageSpeed Insights API no longer answers without one (the keyless quota
+  is 0). In Google Cloud, enable the PageSpeed Insights API and create an API key, then paste it under
+  Hosting → PageSpeed Insights API key, or `wp greenlight set psi_api_key <key>`. Without a key nothing
+  is requested.
+- **Light on the host.** One request a day by WP-Cron (mobile), then one more two minutes later
+  (desktop), asking only for the field data, so the Lighthouse report never downloads. Page views never
+  read or write it. 120 days of history are kept.
+- **Page to measure** (`field_data_url`): empty means the home page. On staging, enter the live site's
+  address.
+- **Check now** on the card runs the check in the background; `wp greenlight scores --refresh` runs it
+  at once.
+- Switch: `field_data` (on by default, idle until a key is set).
+
+## Claude and MCP (Abilities API)
+
+On WordPress 6.9 and later, Greenlight registers four abilities in a `greenlight` category. On older
+WordPress nothing is registered. All four need a user with `manage_options`.
+
+| Ability | Changes anything? | What it returns |
+|---|---|---|
+| `greenlight/status` | no | Version, on/paused, every switch (1/0), host page cache, self-hosted font sets, login page address, overlapping plugins, real-user scores. |
+| `greenlight/security-report` | no | The same schema 1 JSON as `wp greenlight security --format=json`. |
+| `greenlight/compare` | no | One page (`path`, default `/`) loaded with Greenlight and with `?greenlight=off`, both past the host page cache: response time, HTML size, render-blocking head scripts, delayed scripts, embeds held until interaction, lazy images, preloads, hero priority, third-party hosts loaded at once, and Greenlight's summary comment. |
+| `greenlight/purge` | yes: clears caches | The cache layers cleared (host page cache, object cache), like the toolbar's "Clear caches". |
+
+They are marked public, so the REST API (`/wp-json/wp-abilities/v1/`) and the
+[MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) plugin both see them. With the MCP Adapter
+active, Claude reaches them through its default server's `discover-abilities`, `get-ability-info` and
+`execute-ability` tools. Locally (Local, WP-CLI), add to Claude's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "greenlight-site": {
+      "command": "wp",
+      "args": ["--path=/path/to/site", "mcp-adapter", "serve", "--server=mcp-adapter-default-server", "--user=admin"]
+    }
+  }
+}
+```
+
+For a live site over HTTPS, the MCP Adapter's docs use `@automattic/mcp-wordpress-remote` with an
+application password. That needs Greenlight's "Turn off application passwords" switched off.
 
 ## WP-CLI
 
@@ -159,6 +214,8 @@ wp greenlight purge
 wp greenlight fonts [--clear]
 wp greenlight set delay_timeout 0
 wp greenlight security [--format=json] [--reset-baseline] [--trust=<domain>] [--run-checks] [--clear-alerts]
+wp greenlight scores [--refresh] [--format=json]
+wp greenlight compare [<path>] [--format=json]
 ```
 
 `wp greenlight set <key> <value>` changes any setting; switches take `1` or `0`. Every Security feature
@@ -174,6 +231,8 @@ wp greenlight set xmlrpc_off 0
 wp greenlight set file_editor_off 1
 wp greenlight set email_obfuscation 1
 wp greenlight set app_passwords_off 1
+wp greenlight set psi_api_key AIza...           # real-user scores
+wp greenlight set field_data_url https://www.example.com/
 wp greenlight set hide_login 1                 # login at /backend-login/
 wp greenlight set login_slug clinic-door       # or another address
 wp greenlight set alert_email alerts@example.com
@@ -198,7 +257,7 @@ With `--format=json` the output is only the JSON (the options above print nothin
 contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 
 ```json
-{"greenlight_version":"0.3.0","schema":1,
+{"greenlight_version":"0.4.0","schema":1,
  "features":{"headers":true,"hsts":false,"csp_report_only":false,"hide_usernames":true,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":true,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},
  "script_baseline":["googletagmanager.com"],
  "trusted_embed_domains":["calendly.com","google.com","jotform.com","vimeo.com","youtube.com"],

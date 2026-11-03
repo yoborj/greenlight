@@ -57,6 +57,9 @@ class Settings {
 			// Hosting.
 			'purge_on_save'      => 1,
 			'preconnect'         => 1,
+			'field_data'         => 1, // Real-user scores: nothing is requested until an API key is set.
+			'field_data_url'     => '',
+			'psi_api_key'        => '',
 
 			// Security: hardening. These key names are part of `wp greenlight security --format=json`.
 			'headers'            => 1,
@@ -306,6 +309,10 @@ class Settings {
 				$out[ $key ] = isset( $input[ $key ] ) ? max( 0, (int) $input[ $key ] ) : 0;
 			} elseif ( 'alert_email' === $key ) {
 				$out[ $key ] = sanitize_email( wp_unslash( $input[ $key ] ?? '' ) );
+			} elseif ( 'field_data_url' === $key ) {
+				$out[ $key ] = esc_url_raw( trim( wp_unslash( $input[ $key ] ?? '' ) ) );
+			} elseif ( 'psi_api_key' === $key ) {
+				$out[ $key ] = preg_replace( '/[^A-Za-z0-9_-]/', '', wp_unslash( $input[ $key ] ?? '' ) );
 			} elseif ( 'login_slug' === $key ) {
 				$out[ $key ] = sanitize_title( wp_unslash( $input[ $key ] ?? '' ) );
 			} elseif ( 'csp_policy' === $key ) {

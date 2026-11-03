@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — 2026-11-03
+
+### Added
+- **Real-user scores on the Overview.** A "Real visitors" card with Core Web Vitals from the Chrome UX
+  Report (LCP, INP, CLS, plus FCP and TTFB; 75th percentile of 28 days) for mobile and desktop: whether
+  each passes, a rating per metric, and the value on the oldest day kept, so improvements since
+  Greenlight show. Uses the PageSpeed Insights API once a day by WP-Cron (mobile, then desktop two
+  minutes later), asking only for field data; page views never touch it. Needs a free API key (Google's
+  keyless quota is now 0): Hosting → PageSpeed Insights API key. Optional page to measure, for staging.
+  "Check now" button; `wp greenlight scores [--refresh] [--format=json]`.
+- **Abilities for Claude and MCP** (WordPress 6.9+): `greenlight/status`, `greenlight/security-report`
+  (schema 1 JSON), `greenlight/compare` and `greenlight/purge`, in a `greenlight` category, public for
+  the REST API and the MCP Adapter plugin. All need `manage_options`; only `purge` changes anything.
+  Nothing is registered on older WordPress.
+- `wp greenlight compare [<path>]`: a page with and without Greenlight, measured.
+
+### Unchanged
+- `wp greenlight security --format=json` (schema 1).
+
 ## 0.3.0 — 2026-10-22
 
 ### Added

@@ -5,6 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * WP-CLI: wp greenlight status | purge | fonts [--clear] | set <key> <value> | security [--format=json]
+ *         | scores [--refresh] [--format=json] | compare [<path>] [--format=json]
  */
 class CLI {
 
@@ -147,5 +148,91 @@ class CLI {
 		if ( $report['alerts'] ) {
 			\WP_CLI\Utils\format_items( 'table', $report['alerts'], array( 'time', 'severity', 'type', 'message' ) );
 		}
+	}
+
+	/**
+	 * Real-user Core Web Vitals (CrUX via PageSpeed Insights), as shown on the Overview.
+	 *
+	 * [--refresh]
+	 * : Ask PageSpeed Insights now (mobile and desktop) instead of showing the last daily check.
+	 *
+	 * [--format=<format>]
+	 * : table or json.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 * ---
+	 */
+	public function scores( $args, $assoc ) {
+		if ( isset( $assoc['refresh'] ) ) {
+			if ( ! Field_Data::ready() ) {
+				\WP_CLI::error( 'Set a PageSpeed Insights API key first: wp greenlight set psi_api_key <key>' );
+			}
+			Field_Data::fetch( 'mobile' );
+			Field_Data::fetch( 'desktop' );
+		}
+		$f = Field_Data::summary();
+		if ( 'json' === ( $assoc['format'] ?? 'table' ) ) {
+			\WP_CLI::line( wp_json_encode( $f, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+			return;
+		}
+		if ( ! $f['has_key'] ) {
+			\WP_CLI::line( 'No PageSpeed Insights API key: wp greenlight set psi_api_key <key>' );
+			return;
+		}
+		\WP_CLI::line( 'Real visitors (CrUX, 75th percentile, 28 days): ' . $f['url'] . ( $f['updated'] ? ', checked ' . $f['updated'] : ', not checked yet' ) );
+		if ( $f['error'] ) {
+			\WP_CLI::warning( $f['error'] );
+		}
+		$rows = array();
+		foreach ( array( 'mobile', 'desktop' ) as $form ) {
+			$d   = $f[ $form ];
+			$row = array( 'form' => $form, 'scope' => $d ? $d['scope'] : 'not enough data', 'passes' => $d && null !== $d['passes'] ? ( $d['passes'] ? 'yes' : 'no' ) : '' );
+			foreach ( array( 'lcp', 'inp', 'cls', 'fcp', 'ttfb' ) as $key ) {
+				$m           = $d['metrics'][ $key ] ?? null;
+				$row[ $key ] = $m ? Field_Data::format( $key, $m['p75'] ) . ( 'good' === $m['rating'] ? '' : ' (' . $m['rating'] . ')' ) : '';
+			}
+			$rows[] = $row;
+		}
+		\WP_CLI\Utils\format_items( 'table', $rows, array( 'form', 'scope', 'passes', 'lcp', 'inp', 'cls', 'fcp', 'ttfb' ) );
+	}
+
+	/**
+	 * Load a page with Greenlight and with ?greenlight=off, and show what changed.
+	 *
+	 * [<path>]
+	 * : Path on this site. Default: /
+	 *
+	 * [--format=<format>]
+	 * : table or json.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 * ---
+	 */
+	public function compare( $args, $assoc ) {
+		$result = Report::compare( $args[0] ?? '/' );
+		if ( is_wp_error( $result ) ) {
+			\WP_CLI::error( $result->get_error_message() );
+		}
+		if ( 'json' === ( $assoc['format'] ?? 'table' ) ) {
+			\WP_CLI::line( wp_json_encode( $result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+			return;
+		}
+		\WP_CLI::line( $result['url'] );
+		$rows = array();
+		foreach ( $result['with'] as $key => $value ) {
+			if ( 'greenlight_summary' === $key ) {
+				continue;
+			}
+			$show   = function ( $v ) { return is_array( $v ) ? ( implode( ', ', $v ) ?: '—' ) : ( is_bool( $v ) ? ( $v ? 'yes' : 'no' ) : (string) $v ); };
+			$rows[] = array( 'measure' => $key, 'with' => $show( $value ), 'without' => $show( $result['without'][ $key ] ) );
+		}
+		\WP_CLI\Utils\format_items( 'table', $rows, array( 'measure', 'with', 'without' ) );
+		\WP_CLI::line( $result['with']['greenlight_summary'] ?? '' );
 	}
 }
