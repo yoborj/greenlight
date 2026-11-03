@@ -410,3 +410,13 @@ body.toplevel_page_greenlight #wpfooter { display: none; }
 .gl-field-was { color: var(--gl-faint); font-size: 12.5px; }
 .gl-field-foot { margin-top: 12px !important; color: var(--gl-faint); font-size: 12.5px !important; }
 @media (max-width: 782px) { .gl-field-cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* 0.5.0: score history, settings preset */
+.gl-spark { flex: none; margin-left: auto; align-self: center; color: var(--gl-faint); }
+.gl-spark-dot { fill: #cfd8d3; }
+.gl-spark.gl-rate-good .gl-spark-dot { fill: var(--gl-green); }
+.gl-spark.gl-rate-needs-improvement .gl-spark-dot { fill: #f59e0b; }
+.gl-spark.gl-rate-poor .gl-spark-dot { fill: var(--gl-danger); }
+.gl-import { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gl-line-soft); }
+.gl-import label { width: 100%; font-size: 12.5px; font-weight: 600; }
+.gl-wrap .gl-import input[type="file"] { flex: 1; min-width: 0; font-size: 12.5px; color: var(--gl-muted); }

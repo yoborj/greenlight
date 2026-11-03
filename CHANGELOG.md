@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0 — 2026-11-03
+
+### Added
+- **Plugin files only where used** (Scripts, on by default): Contact Form 7, Fluent Forms, Formidable,
+  Mailchimp for WP, Smash Balloon Instagram Feed and Slider Revolution keep their CSS and JS off pages
+  that don't show them, decided from each page's finished HTML. One switch per plugin; custom rules as
+  `handles | marker`.
+- **WebP copies of all images** (Images & embeds, off by default: extra disk space). Media-library JPEG
+  and PNG images, srcset included, switch to WebP once the copy exists. Copies are made for new uploads
+  and for images pages show, a few seconds at a time by WP-Cron, with one cache purge per batch.
+- **Size-matched fallback fonts** (Fonts, on): each self-hosted family gets Arial- and Times-based
+  fallback faces sized from the font's own measurements (as Next.js does: Roboto 100.31%), added to the
+  page's inline font stacks, so text doesn't jump when the web font arrives. Existing font sets get them
+  automatically.
+- **Vimeo: thumbnail until clicked** (Images & embeds, on), like YouTube. Thumbnails come from Vimeo's
+  oEmbed API, once per video in the background.
+- **Load the next page ahead** (Scripts): prefetch on hover by default, prerender or off. Uses WordPress's
+  speculative loading (6.8+) and prints the same rules on older WordPress; the login page is excluded.
+- **Weekly report email** (Hosting, off by default): real-user scores now / a week ago / first day and
+  the week's security alerts, every Monday. "Send a test now"; `wp greenlight digest [--send]`.
+- **Score history** on the Real visitors card: a small trend line per metric.
+- **Settings presets**: Download preset / Import a preset on the Overview; `wp greenlight export
+  [--with-key]` and `wp greenlight import <file> [--dry-run]`.
+
+### Unchanged
+- `wp greenlight security --format=json` (schema 1).
+
 ## 0.4.0 — 2026-11-03
 
 ### Added

@@ -16,11 +16,23 @@ defined( 'ABSPATH' ) || exit;
  */
 class Fonts {
 
-	const HOOK = 'greenlight_build_fonts';
+	const HOOK      = 'greenlight_build_fonts';
+	const FALLBACKS = 'greenlight_font_fallbacks';
+
+	/**
+	 * The local fonts fallbacks are built on: units per em and weighted average width (measured with
+	 * ttf_metrics(), as below), plus the local() names to ask for. "Serif" is used when the page's own
+	 * stack ends in serif.
+	 */
+	const BASES = array(
+		''       => array( 2048, 904, 'local("Arial"), local("ArialMT"), local("Helvetica Neue"), local("Helvetica")' ),
+		' Serif' => array( 2048, 819, 'local("Times New Roman"), local("TimesNewRomanPSMT"), local("Times")' ),
+	);
 	const UA   = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0 Safari/537.36';
 
 	public static function init() {
 		add_action( self::HOOK, array( __CLASS__, 'build' ) );
+		add_action( self::FALLBACKS, array( __CLASS__, 'fallbacks' ) );
 	}
 
 	public static function dir( $key = '' ) {
@@ -41,6 +53,7 @@ class Fonts {
 		}
 		$preloads  = array();
 		$localized = 0;
+		$fallbacks = array();
 		foreach ( $all as $m ) {
 			$tag  = $m[0];
 			$href = html_entity_decode( $m[2] );
@@ -56,6 +69,15 @@ class Fonts {
 				}
 				$report['fonts'] = 'building';
 				continue;
+			}
+			if ( Settings::get( 'fonts_fallback' ) ) {
+				if ( ! isset( $meta['fallbacks'] ) ) {
+					if ( ! wp_next_scheduled( self::FALLBACKS, array( $href ) ) ) {
+						wp_schedule_single_event( time(), self::FALLBACKS, array( $href ) ); // A set built before 0.5.0.
+					}
+				} else {
+					$fallbacks += (array) $meta['fallbacks'];
+				}
 			}
 			$local = '<link rel="stylesheet" id="greenlight-fonts-' . $key . '" href="' . esc_url( $d['url'] . '/fonts.css?v=' . $meta['built'] ) . '" media="all">';
 			$html  = str_replace( $tag, $local, $html );
@@ -76,8 +98,200 @@ class Fonts {
 				$html = Html::after_head_start( $html, $links );
 			}
 			$report['fonts'] = $localized . ' local';
+			if ( $fallbacks ) {
+				$html = self::use_fallbacks( $html, $fallbacks, $report );
+			}
 		}
 		return $html;
+	}
+
+	/**
+	 * Put each self-hosted family's size-matched fallback right after it in the page's font stacks
+	 * ("Roboto", sans-serif → "Roboto", "Roboto Fallback", sans-serif; a stack ending in serif gets the
+	 * Times-based "… Fallback Serif"), so the text keeps its size and line breaks while the web font loads. Only stacks set in the page's own <style> blocks (block
+	 * themes' global styles, page builders); a theme's external stylesheet keeps its own fallback.
+	 */
+	private static function use_fallbacks( $html, array $map, array &$report ) {
+		$lower = array_change_key_case( $map, CASE_LOWER );
+		$count = 0;
+		$out   = preg_replace_callback(
+			'#(<style\b[^>]*>)(.*?)(</style>)#is',
+			function ( $s ) use ( $lower, &$count ) {
+				$css = preg_replace_callback(
+					'/((?:font-family|--[\w-]*font-family[\w-]*)\s*:\s*)([^;{}<]+)/i',
+					function ( $d ) use ( $lower, &$count ) {
+						$parts = array_map( 'trim', explode( ',', $d[2] ) );
+						$serif = in_array( 'serif', array_map( 'strtolower', $parts ), true ) ? ' Serif' : '';
+						$new   = array();
+						foreach ( $parts as $i => $part ) {
+							$new[] = $part;
+							$name  = strtolower( trim( preg_replace( '/\s*!important$/i', '', $part ), '\'" ' ) );
+							$next  = isset( $parts[ $i + 1 ] ) ? strtolower( trim( $parts[ $i + 1 ], '\'" ' ) ) : '';
+							if ( isset( $lower[ $name ] ) && 0 !== strpos( $next, strtolower( $lower[ $name ] ) ) && false === stripos( $part, '!important' ) ) {
+								$new[] = '"' . $lower[ $name ] . $serif . '"';
+								$count++;
+							}
+						}
+						return $d[1] . implode( ', ', $new );
+					},
+					$s[2]
+				);
+				return $s[1] . ( null === $css ? $s[2] : $css ) . $s[3];
+			},
+			$html
+		);
+		if ( null === $out ) {
+			return $html;
+		}
+		if ( $count ) {
+			$report['font fallbacks'] = $count;
+		}
+		return $out;
+	}
+
+	/**
+	 * Background job: measure each family in a font set (its TrueType file, which Google serves to a
+	 * client that doesn't name a browser) and add size-matched fallback faces to fonts.css: one on
+	 * Arial, one on Times New Roman.
+	 */
+	public static function fallbacks( $href ) {
+		$key  = self::key( $href );
+		$d    = self::dir( $key );
+		$meta = is_readable( $d['path'] . '/meta.json' ) ? json_decode( (string) file_get_contents( $d['path'] . '/meta.json' ), true ) : null;
+		if ( ! $meta || isset( $meta['fallbacks'] ) || ! is_readable( $d['path'] . '/fonts.css' ) ) {
+			return;
+		}
+		$meta['fallbacks'] = array(); // Measured once, even if a family can't be.
+		$r = wp_remote_get( $href, array( 'timeout' => 20, 'user-agent' => 'Greenlight' ) );
+		$faces = array();
+		if ( ! is_wp_error( $r ) && preg_match_all( '#@font-face\s*\{([^}]*)\}#i', (string) wp_remote_retrieve_body( $r ), $blocks ) ) {
+			foreach ( $blocks[1] as $block ) {
+				if ( ! preg_match( '/font-family:\s*[\'"]?([^;\'"]+)/i', $block, $fam ) || ! preg_match( '#url\(([^)]+\.ttf)\)#i', $block, $url ) || preg_match( '/font-style:\s*italic/i', $block ) ) {
+					continue;
+				}
+				$weight = preg_match( '/font-weight:\s*(\d+)/i', $block, $w ) ? (int) $w[1] : 400;
+				// The regular weight measures best; otherwise the first one listed.
+				if ( ! isset( $faces[ $fam[1] ] ) || 400 === $weight ) {
+					$faces[ $fam[1] ] = trim( $url[1], '\'" ' );
+				}
+			}
+		}
+		$css = '';
+		foreach ( $faces as $family => $url ) {
+			$res = wp_remote_get( $url, array( 'timeout' => 20 ) );
+			$m   = is_wp_error( $res ) ? null : self::ttf_metrics( (string) wp_remote_retrieve_body( $res ) );
+			if ( ! $m ) {
+				continue;
+			}
+			$name = str_replace( '"', '', $family ) . ' Fallback';
+			foreach ( self::BASES as $suffix => $base ) {
+				$size = ( $m['avg'] / $m['upem'] ) / ( $base[1] / $base[0] );
+				$css .= sprintf(
+					"@font-face {\n  font-family: \"%s\";\n  src: %s;\n  ascent-override: %.2f%%;\n  descent-override: %.2f%%;\n  line-gap-override: %.2f%%;\n  size-adjust: %.2f%%;\n}\n",
+					$name . $suffix,
+					$base[2],
+					$m['ascent'] / ( $m['upem'] * $size ) * 100,
+					abs( $m['descent'] ) / ( $m['upem'] * $size ) * 100,
+					$m['gap'] / ( $m['upem'] * $size ) * 100,
+					$size * 100
+				);
+			}
+			$meta['fallbacks'][ $family ] = $name;
+		}
+		if ( $css ) {
+			file_put_contents( $d['path'] . '/fonts.css', "\n/* Size-matched fallbacks: text keeps its size while the fonts load. */\n" . $css, FILE_APPEND );
+			$meta['built'] = time(); // A new ?v= so cached copies of fonts.css refresh.
+		}
+		file_put_contents( $d['path'] . '/meta.json', wp_json_encode( $meta ) );
+		if ( $css ) {
+			do_action( 'greenlight_purge_all', 'font fallbacks' );
+		}
+	}
+
+	/** English letter frequencies (%) and a space roughly every five characters: what "average width" means here. */
+	const WEIGHTS = array( ' ' => 22.0, 'a' => 8.167, 'b' => 1.492, 'c' => 2.782, 'd' => 4.253, 'e' => 12.702, 'f' => 2.228, 'g' => 2.015, 'h' => 6.094, 'i' => 6.966, 'j' => 0.153, 'k' => 0.772, 'l' => 4.025, 'm' => 2.406, 'n' => 6.749, 'o' => 7.507, 'p' => 1.929, 'q' => 0.095, 'r' => 5.987, 's' => 6.327, 't' => 9.056, 'u' => 2.758, 'v' => 0.978, 'w' => 2.360, 'x' => 0.150, 'y' => 1.974, 'z' => 0.074 );
+
+	/**
+	 * Units per em, ascent, descent and line gap (hhea), and the frequency-weighted average width of
+	 * a–z and space (cmap + hmtx), the way capsize and Next.js size fallbacks. Null if it isn't a
+	 * readable TrueType file.
+	 */
+	public static function ttf_metrics( $bin ) {
+		$len = strlen( $bin );
+		if ( $len < 12 || ! in_array( substr( $bin, 0, 4 ), array( "\x00\x01\x00\x00", 'true' ), true ) ) {
+			return null;
+		}
+		$u16 = function ( $at ) use ( $bin, $len ) { return $at + 2 <= $len ? unpack( 'n', substr( $bin, $at, 2 ) )[1] : 0; };
+		$s16 = function ( $at ) use ( $u16 ) { $v = $u16( $at ); return $v >= 0x8000 ? $v - 0x10000 : $v; };
+		$u32 = function ( $at ) use ( $bin, $len ) { return $at + 4 <= $len ? unpack( 'N', substr( $bin, $at, 4 ) )[1] : 0; };
+		$tables = array();
+		for ( $i = 0, $n = $u16( 4 ); $i < $n; $i++ ) {
+			$tables[ substr( $bin, 12 + 16 * $i, 4 ) ] = $u32( 12 + 16 * $i + 8 );
+		}
+		if ( ! isset( $tables['head'], $tables['hhea'], $tables['hmtx'], $tables['cmap'] ) ) {
+			return null;
+		}
+		$upem = $u16( $tables['head'] + 18 );
+		$hhea = $tables['hhea'];
+		$nhm  = $u16( $hhea + 34 );
+		// cmap: the Windows Unicode (3,1) or Unicode (0,x) subtable in format 4.
+		$cmap = $tables['cmap'];
+		$sub  = 0;
+		for ( $i = 0, $n = $u16( $cmap + 2 ); $i < $n; $i++ ) {
+			$rec = $cmap + 4 + 8 * $i;
+			$at  = $cmap + $u32( $rec + 4 );
+			if ( 4 === $u16( $at ) && ( ( 3 === $u16( $rec ) && 1 === $u16( $rec + 2 ) ) || 0 === $u16( $rec ) ) ) {
+				$sub = $at;
+				break;
+			}
+		}
+		if ( ! $sub || ! $upem || ! $nhm ) {
+			return null;
+		}
+		$segs   = $u16( $sub + 6 ) / 2;
+		$ends   = $sub + 14;
+		$starts = $ends + 2 * $segs + 2;
+		$deltas = $starts + 2 * $segs;
+		$ranges = $deltas + 2 * $segs;
+		$glyph  = function ( $c ) use ( $segs, $ends, $starts, $deltas, $ranges, $u16 ) {
+			for ( $i = 0; $i < $segs; $i++ ) {
+				if ( $u16( $ends + 2 * $i ) < $c ) {
+					continue;
+				}
+				$start = $u16( $starts + 2 * $i );
+				if ( $start > $c ) {
+					return 0;
+				}
+				$delta = $u16( $deltas + 2 * $i );
+				$range = $u16( $ranges + 2 * $i );
+				if ( ! $range ) {
+					return ( $c + $delta ) & 0xFFFF;
+				}
+				$g = $u16( $ranges + 2 * $i + $range + 2 * ( $c - $start ) );
+				return $g ? ( $g + $delta ) & 0xFFFF : 0;
+			}
+			return 0;
+		};
+		$sum   = 0;
+		$total = 0;
+		foreach ( self::WEIGHTS as $char => $weight ) {
+			$g = $glyph( ord( $char ) );
+			if ( ! $g ) {
+				continue;
+			}
+			$sum   += $u16( $tables['hmtx'] + 4 * min( $g, $nhm - 1 ) ) * $weight;
+			$total += $weight;
+		}
+		if ( ! $total ) {
+			return null;
+		}
+		return array(
+			'upem'    => $upem,
+			'ascent'  => $s16( $hhea + 4 ),
+			'descent' => $s16( $hhea + 6 ),
+			'gap'     => $s16( $hhea + 8 ),
+			'avg'     => $sum / $total,
+		);
 	}
 
 	/** Background job: download a Google Fonts stylesheet and its files. */
@@ -133,6 +347,9 @@ class Fonts {
 		}
 		file_put_contents( $d['path'] . '/fonts.css', "/* Self-hosted by Greenlight from {$href} */\n" . $css );
 		file_put_contents( $d['path'] . '/meta.json', wp_json_encode( array( 'href' => $href, 'built' => time(), 'files' => array_keys( $files ), 'preload' => array_keys( $preload ) ) ) );
+		if ( Settings::get( 'fonts_fallback' ) ) {
+			self::fallbacks( $href );
+		}
 		do_action( 'greenlight_purge_all', 'fonts built' );
 	}
 

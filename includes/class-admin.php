@@ -19,6 +19,9 @@ class Admin {
 		add_action( 'admin_post_greenlight_trust', array( __CLASS__, 'handle_trust' ) );
 		add_action( 'admin_post_greenlight_clear_alerts', array( __CLASS__, 'handle_clear_alerts' ) );
 		add_action( 'admin_post_greenlight_field_data', array( __CLASS__, 'handle_field_data' ) );
+		add_action( 'admin_post_greenlight_export', array( __CLASS__, 'handle_export' ) );
+		add_action( 'admin_post_greenlight_import', array( __CLASS__, 'handle_import' ) );
+		add_action( 'admin_post_greenlight_digest_test', array( __CLASS__, 'handle_digest_test' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( GREENLIGHT_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
@@ -125,6 +128,70 @@ class Admin {
 		exit;
 	}
 
+	/** "Download preset": this site's settings as a JSON file (without the API key or the page measured). */
+	public static function handle_export() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_export' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		$host = sanitize_title( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="greenlight-preset-' . $host . '-' . gmdate( 'Y-m-d' ) . '.json"' );
+		echo wp_json_encode( Presets::export(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		exit;
+	}
+
+	/** "Import preset": apply a preset file to this site. */
+	public static function handle_import() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_import' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		$file = $_FILES['greenlight_preset'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( ! $file || UPLOAD_ERR_OK !== ( $file['error'] ?? UPLOAD_ERR_NO_FILE ) || ! is_uploaded_file( $file['tmp_name'] ) || $file['size'] > 200 * KB_IN_BYTES ) {
+			$notice = 'Choose a preset file (.json) to import.';
+		} else {
+			$result = Presets::import( json_decode( (string) file_get_contents( $file['tmp_name'] ), true ) );
+			if ( is_wp_error( $result ) ) {
+				$notice = $result->get_error_message();
+			} else {
+				$notice = $result ? 'Preset imported: ' . count( $result ) . ' setting(s) changed (' . implode( ', ', array_slice( $result, 0, 8 ) ) . ( count( $result ) > 8 ? ', …' : '' ) . ').' : 'Preset imported: this site already had the same settings.';
+			}
+		}
+		set_transient( 'greenlight_notice_' . get_current_user_id(), $notice, 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight' ) );
+		exit;
+	}
+
+	public static function handle_digest_test() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'greenlight_digest_test' ) ) {
+			wp_die( 'Not allowed.' );
+		}
+		$to = Digest::recipient();
+		set_transient( 'greenlight_notice_' . get_current_user_id(), Digest::send() ? "Test report sent to {$to}." : "The test report to {$to} couldn't be sent: check the site's email setup.", 60 );
+		wp_safe_redirect( admin_url( 'admin.php?page=greenlight&tab=hosting' ) );
+		exit;
+	}
+
+	/** A small line of up to 120 daily values (oldest left), its last point colored by rating. */
+	private static function sparkline( array $values, $rating ) {
+		$values = array_values( array_filter( $values, 'is_numeric' ) );
+		if ( count( $values ) < 3 ) {
+			return '';
+		}
+		$w   = 72;
+		$h   = 20;
+		$min = min( $values );
+		$max = max( $values );
+		$pts = array();
+		foreach ( $values as $i => $v ) {
+			$x     = round( $i * ( $w - 4 ) / ( count( $values ) - 1 ) + 2, 1 );
+			$y     = round( $max === $min ? $h / 2 : 2 + ( $max - $v ) * ( $h - 4 ) / ( $max - $min ), 1 ); // Lower is better: shown lower.
+			$pts[] = $x . ',' . $y;
+		}
+		list( $lx, $ly ) = explode( ',', end( $pts ) );
+		return '<svg class="gl-spark gl-rate-' . esc_attr( $rating ?: 'none' ) . '" viewBox="0 0 ' . $w . ' ' . $h . '" width="' . $w . '" height="' . $h . '" aria-hidden="true" focusable="false"><polyline points="' . esc_attr( implode( ' ', $pts ) ) . '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity=".55"/><circle cx="' . esc_attr( $lx ) . '" cy="' . esc_attr( $ly ) . '" r="2.6" class="gl-spark-dot"/></svg>';
+	}
+
 	/** Other plugins that do the same jobs (or that a Security switch breaks); running two on one job causes double work or breakage. */
 	public static function conflicts() {
 		$found = array();
@@ -182,8 +249,10 @@ class Admin {
 					'lazy_eager_count' => array( 'number', 'Always load the first', 'From the top of the page. 2 suits most sites.', array( 'requires' => 'lazy', 'min' => 0, 'max' => 10, 'unit' => 'images' ) ),
 					'dimensions'       => array( 'check', 'Add missing image sizes', 'Stops the page jumping as images load. Never changes how big an image shows.' ),
 					'responsive'       => array( 'check', 'Responsive theme images', 'Smaller files for phones.' ),
+					'webp_images'      => array( 'check', 'WebP copies of all images', 'Media-library JPEG and PNG images switch to lighter WebP copies, made a few at a time in the background. Originals stay.', array( 'badge' => array( 'warn', 'Uses more disk space' ) ) ),
 					'lazy_iframes'     => array( 'check', 'Lazy-load iframes', 'Embeds load when scrolled near.' ),
 					'youtube_facade'   => array( 'check', 'YouTube: thumbnail until clicked', 'The player loads on click.' ),
+					'vimeo_facade'     => array( 'check', 'Vimeo: thumbnail until clicked', 'The player loads on click.' ),
 					'embeds_delay'     => array( 'check', 'Delay heavy embeds', 'Maps, Vimeo, reviews and booking wait for the first scroll or tap.' ),
 					'delay_iframes'    => array( 'lines', 'Embeds to hold back', 'Switch off to load with the page.', array( 'requires' => 'embeds_delay' ) ),
 				),
@@ -196,6 +265,7 @@ class Admin {
 				'fields'  => array(
 					'fonts_local'   => array( 'check', 'Self-host Google Fonts', 'No second server for fonts.' ),
 					'fonts_preload' => array( 'check', 'Preload the main font files', 'Main font files load before the page draws.', array( 'requires' => 'fonts_local' ) ),
+					'fonts_fallback' => array( 'check', 'Size-matched fallback font', 'Text keeps its size while the web font loads, so nothing jumps. Applies where the page sets its fonts inline (block themes, page builders).', array( 'requires' => 'fonts_local' ) ),
 					'fonts_display' => array( 'choice', 'While fonts load', 'font-display for self-hosted fonts.', array(
 						'requires' => 'fonts_local',
 						'options'  => array(
@@ -219,6 +289,15 @@ class Admin {
 					'defer_head'       => array( 'check', 'Defer render-blocking scripts', 'Head scripts stop blocking the first paint.' ),
 					'jquery_footer'    => array( 'check', 'Load jQuery in the footer', 'Pages that need it early keep it in the head.', array( 'requires' => 'defer_head', 'badge' => array( 'info', 'Checked on every page' ) ) ),
 					'defer_exclusions' => array( 'lines', 'Never defer', 'Scripts the theme calls straight away.', array( 'requires' => 'defer_head' ) ),
+					'assets_on_demand' => array( 'check', 'Plugin files only where used', 'Form, feed and slider plugins load their files only on pages that show them.', array( 'badge' => array( 'info', 'Checked on every page' ) ) ),
+					'asset_rules'      => array( 'lines', 'Plugins to check', 'Switch off to load everywhere. Add your own as: handles | markup only those pages have.', array( 'requires' => 'assets_on_demand', 'placeholder' => 'my-slider-css, my-slider-js | my-slider' ) ),
+					'speculation'      => array( 'choice', 'Load the next page ahead', 'When a visitor hovers a link, for logged-out visitors.', array(
+						'options' => array(
+							'prefetch'  => 'Fetch the page on hover. Light.',
+							'prerender' => 'Prepare the whole page on hover. Fastest; more work for the server.',
+							'off'       => 'Nothing loads ahead (also turns off WordPress\'s own).',
+						),
+					) ),
 				),
 			),
 			'cleanup' => array(
@@ -248,6 +327,8 @@ class Admin {
 					'psi_api_key'    => array( 'text', 'PageSpeed Insights API key', 'Free from Google Cloud: enable the PageSpeed Insights API, then create an API key. Google no longer answers without one.', array( 'requires' => 'field_data', 'type' => 'password', 'placeholder' => 'AIza…' ) ),
 					'field_data_url' => array( 'text', 'Page to measure', 'Empty: this site\'s home page. On staging, enter the live site\'s address.', array( 'requires' => 'field_data', 'type' => 'url', 'placeholder' => home_url( '/' ) ) ),
 					'mcp_access'     => array( 'check', 'Allow Claude (MCP) access', 'Lets Claude check and run Greenlight through the MCP Adapter plugin: status, security report, compare a page, clear caches. Administrators only. Off: nothing is registered.', function_exists( 'wp_register_ability' ) ? array() : array( 'badge' => array( 'info', 'Needs WordPress 6.9' ) ) ),
+					'weekly_digest'  => array( 'check', 'Weekly report email', 'Real-user scores and the week\'s security alerts, every Monday morning. Made for clients.', array( 'action' => array( 'Send a test now', wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_digest_test' ), 'greenlight_digest_test' ) ) ) ),
+					'digest_email'   => array( 'text', 'Send the report to', 'Empty: the security alerts address.', array( 'requires' => 'weekly_digest', 'type' => 'email', 'placeholder' => Alerts::recipient() ) ),
 				),
 			),
 			'security' => array(
@@ -300,6 +381,8 @@ class Admin {
 			'check'    => '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 			'server'   => '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
 			'security' => '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>',
+			'download' => '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/>',
+			'upload'   => '<path d="M12 15V4"/><path d="M7.5 8.5L12 4l4.5 4.5"/><path d="M5 19.5h14"/>',
 			'link'     => '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 		);
 		return '<svg class="gl-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ( $paths[ $name ] ?? '' ) . '</svg>';
@@ -450,6 +533,7 @@ class Admin {
 		if ( ! $f['enabled'] ) {
 			return;
 		}
+		$history = Field_Data::state()['history'];
 		$check  = wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_field_data' ), 'greenlight_field_data' );
 		$names  = array( 'lcp' => 'LCP', 'inp' => 'INP', 'cls' => 'CLS', 'fcp' => 'FCP', 'ttfb' => 'TTFB' );
 		$labels = array( 'good' => 'Good', 'needs-improvement' => 'Needs improvement', 'poor' => 'Poor' );
@@ -490,6 +574,7 @@ class Admin {
 											<?php if ( null !== $first && (string) $first !== (string) $m['p75'] && in_array( $key, array( 'lcp', 'inp', 'cls' ), true ) ) : ?>
 												<span class="gl-field-was">was <?php echo esc_html( Field_Data::format( $key, $first ) ); ?></span>
 											<?php endif; ?>
+											<?php if ( in_array( $key, array( 'lcp', 'inp', 'cls' ), true ) ) { echo self::sparkline( wp_list_pluck( (array) ( $history[ $form ] ?? array() ), $key ), $m['rating'] ); } // phpcs:ignore WordPress.Security.EscapeOutput ?>
 										</li>
 									<?php endforeach; ?>
 								</ul>
@@ -726,11 +811,24 @@ class Admin {
 									<?php if ( $fonts ) : ?><a class="gl-btn gl-btn-ghost" href="<?php echo esc_url( $fonts_url ); ?>"><?php echo self::icon( 'refresh' ); ?>Re-download fonts</a><?php endif; ?>
 								</div>
 							</div>
+							<div class="gl-card gl-side-card">
+								<h3>Settings preset</h3>
+								<p>Copy this site's setup to another site. The PageSpeed key and the page measured stay here.</p>
+								<div class="gl-btn-row">
+									<a class="gl-btn gl-btn-soft" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=greenlight_export' ), 'greenlight_export' ) ); ?>"><?php echo self::icon( 'download' ); ?>Download preset</a>
+								</div>
+								<div class="gl-import">
+									<label for="gl-preset-file">Import a preset</label>
+									<input type="file" id="gl-preset-file" name="greenlight_preset" accept=".json,application/json" form="gl-import" required>
+									<button type="submit" class="gl-btn gl-btn-ghost gl-btn-sm" form="gl-import"><?php echo self::icon( 'upload' ); ?>Import</button>
+								</div>
+							</div>
 							<div class="gl-card gl-side-card gl-tip">
 								<h3>Command line</h3>
 								<p><code>wp greenlight status</code></p>
 								<p><code>wp greenlight security</code></p>
 								<p><code>wp greenlight scores</code></p>
+								<p><code>wp greenlight export</code></p>
 							</div>
 						</aside>
 					</div>
@@ -780,6 +878,11 @@ class Admin {
 						<button type="submit" name="submit" class="gl-btn gl-btn-primary">Save changes</button>
 					</span>
 				</div>
+			</form>
+			<?php // The preset import is its own form: forms can't nest, so its fields point here with form="gl-import". ?>
+			<form id="gl-import" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" hidden>
+				<input type="hidden" name="action" value="greenlight_import">
+				<?php wp_nonce_field( 'greenlight_import' ); ?>
 			</form>
 		</div>
 		<?php

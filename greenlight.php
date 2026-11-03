@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Greenlight
  * Description:       Front-end speed fixes that move Core Web Vitals: hero image priority, self-hosted fonts, delayed third-party scripts, smarter lazy-loading, WordPress cleanup and host cache purging. Plus the security hardening and change alerts a managed host leaves to the site. No page cache: managed hosts like WP Engine already cache pages.
- * Version:           0.4.0
+ * Version:           0.5.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GREENLIGHT_VERSION', '0.4.0' );
+define( 'GREENLIGHT_VERSION', '0.5.0' );
 define( 'GREENLIGHT_FILE', __FILE__ );
 define( 'GREENLIGHT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GREENLIGHT_URL', plugin_dir_url( __FILE__ ) );
@@ -36,17 +36,26 @@ require_once GREENLIGHT_DIR . 'includes/class-content-check.php';
 require_once GREENLIGHT_DIR . 'includes/class-field-data.php';
 require_once GREENLIGHT_DIR . 'includes/class-report.php';
 require_once GREENLIGHT_DIR . 'includes/class-abilities.php';
+require_once GREENLIGHT_DIR . 'includes/class-assets.php';
+require_once GREENLIGHT_DIR . 'includes/class-images.php';
+require_once GREENLIGHT_DIR . 'includes/class-speculation.php';
+require_once GREENLIGHT_DIR . 'includes/class-presets.php';
+require_once GREENLIGHT_DIR . 'includes/class-digest.php';
 
 Greenlight\Security::init(); // First: it may define DISALLOW_FILE_EDIT or stop an XML-RPC request.
 Greenlight\Hide_Login::init();
 Greenlight\Alerts::init();
 Greenlight\Content_Check::init();
 Greenlight\Field_Data::init();
+Greenlight\Images::init();
+Greenlight\Speculation::init();
+Greenlight\Digest::init();
 Greenlight\Abilities::init(); // Only with "Allow Claude (MCP) access" on, WordPress 6.9+.
 Greenlight\Cleanup::init();
 Greenlight\Purge::init();
 Greenlight\Fonts::init();
 add_action( 'greenlight_make_webp', array( 'Greenlight\\Html', 'make_webp' ) );
+add_action( 'greenlight_vimeo_thumb', array( 'Greenlight\\Lazy', 'vimeo_thumb' ), 10, 2 );
 Greenlight\Optimizer::init();
 Greenlight\Defer::init();
 Greenlight\Admin::init();
@@ -65,6 +74,8 @@ register_deactivation_hook( __FILE__, function () {
 	wp_clear_scheduled_hook( Greenlight\Alerts::BATCH );
 	wp_unschedule_hook( Greenlight\Field_Data::DAILY ); // Every event, including a pending "Check now".
 	wp_unschedule_hook( Greenlight\Field_Data::DESKTOP );
+	wp_unschedule_hook( Greenlight\Images::HOOK );
+	wp_unschedule_hook( Greenlight\Digest::HOOK );
 } );
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {

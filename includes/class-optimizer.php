@@ -96,6 +96,9 @@ class Optimizer {
 	}
 
 	private static function optimize( $out, array &$report ) {
+		if ( Settings::get( 'assets_on_demand' ) ) {
+			$out = Assets::apply( $out, $report );
+		}
 		$out = Defer::verify_jquery( $out, $report );
 		if ( Settings::get( 'fonts_local' ) ) {
 			$out = Fonts::apply( $out, $report );

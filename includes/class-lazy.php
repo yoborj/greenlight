@@ -8,13 +8,14 @@ defined( 'ABSPATH' ) || exit;
  * - the first few images (and the hero) load at once; everything below loads lazily (native loading="lazy"),
  * - iframes (maps, embeds) load lazily,
  * - images without width/height get them from the file or media library, so the page doesn't jump,
- * - YouTube embeds become a thumbnail that loads the player on click (saves ~1 MB of player code).
+ * - YouTube and Vimeo embeds become a thumbnail that loads the player on click (saves ~1 MB of player code),
+ * - images switch to their WebP copies once those exist (optional).
  */
 class Lazy {
 
 	/** Each image/embed option works on its own: lazy-loading off must not also switch off the others. */
 	public static function needed() {
-		foreach ( array( 'lazy', 'lazy_iframes', 'dimensions', 'responsive', 'youtube_facade', 'embeds_delay' ) as $key ) {
+		foreach ( array( 'lazy', 'lazy_iframes', 'dimensions', 'responsive', 'youtube_facade', 'vimeo_facade', 'embeds_delay', 'webp_images' ) as $key ) {
 			if ( Settings::get( $key ) ) {
 				return true;
 			}
@@ -23,8 +24,17 @@ class Lazy {
 	}
 
 	public static function apply( $html, array &$report ) {
+		$facades = 0;
 		if ( Settings::get( 'youtube_facade' ) ) {
-			$html = self::youtube( $html, $report );
+			$html     = self::youtube( $html, $report );
+			$facades += $report['youtube'] ?? 0;
+		}
+		if ( Settings::get( 'vimeo_facade' ) ) {
+			$html     = self::vimeo( $html, $report );
+			$facades += $report['vimeo'] ?? 0;
+		}
+		if ( $facades ) {
+			$html = self::facade_assets( $html );
 		}
 		$start   = Html::body_offset( $html );
 		$head    = substr( $html, 0, $start );
@@ -42,6 +52,8 @@ class Lazy {
 		$n_iframes  = 0;
 		$delay_iframes = Settings::get( 'embeds_delay' ) ? Settings::lines( 'delay_iframes' ) : array();
 		$responsive = (bool) Settings::get( 'responsive' );
+		$webp_all   = (bool) Settings::get( 'webp_images' );
+		$n_webp     = 0;
 
 		while ( $p->next_tag() ) {
 			$tag = $p->get_tag();
@@ -109,6 +121,9 @@ class Lazy {
 						$n_srcset++;
 					}
 				}
+				if ( $webp_all && ! $is_hero && Images::swap( $p, (string) $p->get_attribute( 'src' ) ) ) {
+					$n_webp++; // The hero gets its WebP copy from the hero setting.
+				}
 			} elseif ( 'IFRAME' === $tag ) {
 				$isrc = (string) $p->get_attribute( 'src' );
 				if ( $delay_iframes && '' !== $isrc && Html::matches_any( $isrc, $delay_iframes ) ) {
@@ -127,6 +142,9 @@ class Lazy {
 		$report['lazy']       = $n_lazy;
 		$report['dimensions'] = $n_dims;
 		$report['srcset']     = $n_srcset;
+		if ( $n_webp ) {
+			$report['webp'] = $n_webp;
+		}
 		$html = $head . $p->get_updated_html();
 		if ( $n_shape ) {
 			// Zero specificity: any width/height the theme's CSS sets wins; otherwise an added side stays "auto", so the
@@ -162,11 +180,68 @@ class Lazy {
 		);
 		if ( $count ) {
 			$report['youtube'] = $count;
-			$css  = '<style id="greenlight-yt">.greenlight-yt{position:relative;width:100%;max-width:100%;background:#000;overflow:hidden;cursor:pointer}.greenlight-yt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.greenlight-yt button{position:absolute;inset:0;margin:auto;width:68px;height:48px;border:0;border-radius:14px;background:rgba(23,23,23,.8);cursor:pointer}.greenlight-yt button::before{content:"";position:absolute;left:27px;top:14px;border-style:solid;border-width:10px 0 10px 17px;border-color:transparent transparent transparent #fff}.greenlight-yt:hover button,.greenlight-yt button:focus-visible{background:#f00}.greenlight-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style>';
-			$js   = '<script id="greenlight-yt-js">document.addEventListener("click",function(e){var b=e.target.closest(".greenlight-yt");if(!b||b.querySelector("iframe"))return;var f=document.createElement("iframe");f.src=b.dataset.src;f.title=b.dataset.title||"YouTube video";f.allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture";f.allowFullscreen=true;b.appendChild(f);});</script>';
-			$html = Html::before_head_end( $html, $css );
-			$html = Html::before_body_end( $html, $js );
 		}
 		return $html;
+	}
+
+	/**
+	 * <iframe src="player.vimeo.com/video/ID"> → its thumbnail and a play button, like YouTube. Vimeo's
+	 * thumbnail address comes from its oEmbed API, fetched once per video in the background; until
+	 * then the iframe stays as it is.
+	 */
+	private static function vimeo( $html, array &$report ) {
+		$thumbs = get_option( 'greenlight_vimeo_thumbs', array() );
+		$thumbs = is_array( $thumbs ) ? $thumbs : array();
+		$count  = 0;
+		$html   = preg_replace_callback(
+			'#<iframe\b[^>]*\ssrc=(["\'])(?:https?:)?//player\.vimeo\.com/video/(\d{5,12})([^"\']*)\1[^>]*>\s*</iframe>#i',
+			function ( $m ) use ( &$count, $thumbs ) {
+				$tag   = $m[0];
+				$id    = $m[2];
+				$query = html_entity_decode( $m[3] );
+				$hash  = preg_match( '/[?&]h=([0-9a-f]+)/i', $query, $h ) ? $h[1] : '';
+				if ( empty( $thumbs[ $id ] ) ) {
+					if ( ! isset( $thumbs[ $id ] ) && ! wp_next_scheduled( 'greenlight_vimeo_thumb', array( $id, $hash ) ) ) {
+						wp_schedule_single_event( time(), 'greenlight_vimeo_thumb', array( $id, $hash ) );
+					}
+					return $tag;
+				}
+				$src  = 'https://player.vimeo.com/video/' . $id . $query;
+				$src .= ( false === strpos( $src, '?' ) ? '?' : '&' ) . 'autoplay=1';
+				$w     = preg_match( '/\swidth=["\']?(\d+)/i', $tag, $wm ) ? (int) $wm[1] : 16;
+				$h     = preg_match( '/\sheight=["\']?(\d+)/i', $tag, $hm ) ? (int) $hm[1] : 9;
+				$title = preg_match( '/\stitle=(["\'])(.*?)\1/i', $tag, $tm ) ? $tm[2] : 'Vimeo video';
+				$count++;
+				return '<div class="greenlight-yt greenlight-vimeo" style="aspect-ratio:' . $w . '/' . $h . '" data-src="' . esc_url( $src ) . '" data-title="' . esc_attr( $title ) . '">'
+					. '<img src="' . esc_url( $thumbs[ $id ] ) . '" alt="" loading="lazy" decoding="async" width="640" height="360">'
+					. '<button type="button" aria-label="' . esc_attr( 'Play video: ' . wp_strip_all_tags( $title ) ) . '"></button></div>';
+			},
+			$html
+		);
+		if ( $count ) {
+			$report['vimeo'] = $count;
+		}
+		return $html;
+	}
+
+	/** Background job: ask Vimeo's oEmbed API for a video's thumbnail (once; failures are remembered as ''). */
+	public static function vimeo_thumb( $id, $hash = '' ) {
+		$thumbs = get_option( 'greenlight_vimeo_thumbs', array() );
+		$thumbs = is_array( $thumbs ) ? $thumbs : array();
+		$page   = 'https://vimeo.com/' . rawurlencode( $id ) . ( $hash ? '/' . rawurlencode( $hash ) : '' );
+		$r      = wp_remote_get( 'https://vimeo.com/api/oembed.json?width=1280&url=' . rawurlencode( $page ), array( 'timeout' => 10 ) );
+		$data   = is_wp_error( $r ) ? null : json_decode( (string) wp_remote_retrieve_body( $r ), true );
+		$thumbs[ $id ] = ( is_array( $data ) && ! empty( $data['thumbnail_url'] ) ) ? esc_url_raw( $data['thumbnail_url'] ) : '';
+		update_option( 'greenlight_vimeo_thumbs', array_slice( $thumbs, -200, null, true ), false );
+		if ( $thumbs[ $id ] ) {
+			do_action( 'greenlight_purge_all', 'vimeo thumbnail' );
+		}
+	}
+
+	/** The styles and click handler both facades share. */
+	private static function facade_assets( $html ) {
+		$css = '<style id="greenlight-yt">.greenlight-yt{position:relative;width:100%;max-width:100%;background:#000;overflow:hidden;cursor:pointer}.greenlight-yt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.greenlight-yt button{position:absolute;inset:0;margin:auto;width:68px;height:48px;border:0;border-radius:14px;background:rgba(23,23,23,.8);cursor:pointer}.greenlight-yt button::before{content:"";position:absolute;left:27px;top:14px;border-style:solid;border-width:10px 0 10px 17px;border-color:transparent transparent transparent #fff}.greenlight-yt:hover button,.greenlight-yt button:focus-visible{background:#f00}.greenlight-vimeo:hover button,.greenlight-vimeo button:focus-visible{background:#17d5ff}.greenlight-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style>';
+		$js  = '<script id="greenlight-yt-js">document.addEventListener("click",function(e){var b=e.target.closest(".greenlight-yt");if(!b||b.querySelector("iframe"))return;var f=document.createElement("iframe");f.src=b.dataset.src;f.title=b.dataset.title||"Video";f.allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen";f.allowFullscreen=true;b.appendChild(f);});</script>';
+		return Html::before_body_end( Html::before_head_end( $html, $css ), $js );
 	}
 }

@@ -27,6 +27,8 @@ class Settings {
 			'dimensions'         => 1,
 			'responsive'         => 1,
 			'youtube_facade'     => 1,
+			'vimeo_facade'       => 1,
+			'webp_images'        => 0, // Extra files on disk, made gradually: switched on per site.
 			'embeds_delay'       => 1,
 			'delay_iframes'      => "google.com/maps\nmaps.google.\nplayer.vimeo.com\nwidget.trustpilot.com\ncalendly.com",
 			'lcp_webp'           => 1,
@@ -35,6 +37,7 @@ class Settings {
 			'fonts_local'        => 1,
 			'fonts_display'      => 'swap',
 			'fonts_preload'      => 1,
+			'fonts_fallback'     => 1,
 
 			// Third-party scripts.
 			'delay'              => 1,
@@ -44,6 +47,9 @@ class Settings {
 			'defer_head'         => 1,
 			'jquery_footer'      => 1,
 			'defer_exclusions'   => '',
+			'assets_on_demand'   => 1,
+			'asset_rules'        => "contact-form-7\nfluent-forms\nformidable\nmailchimp-for-wp\nsmash-balloon-ig\nslider-revolution",
+			'speculation'        => 'prefetch',
 
 			// Cleanup.
 			'no_emojis'          => 1,
@@ -61,6 +67,8 @@ class Settings {
 			'field_data_url'     => '',
 			'psi_api_key'        => '',
 			'mcp_access'         => 0, // Abilities for Claude (MCP): not even registered until switched on.
+			'weekly_digest'      => 0, // Emails the client: switched on per site.
+			'digest_email'       => '',
 
 			// Security: hardening. These key names are part of `wp greenlight security --format=json`.
 			'headers'            => 1,
@@ -182,7 +190,7 @@ class Settings {
 	}
 
 	/** List settings whose entries can be switched on and off one by one. */
-	const LISTS = array( 'lcp_skip', 'delay_patterns', 'delay_exclusions', 'defer_exclusions', 'delay_iframes', 'content_trusted', 'content_spam_words' );
+	const LISTS = array( 'lcp_skip', 'delay_patterns', 'delay_exclusions', 'defer_exclusions', 'delay_iframes', 'content_trusted', 'content_spam_words', 'asset_rules' );
 
 	/** Active entries of a list setting (one per line; a line starting with "#" is switched off). */
 	public static function lines( $key ) {
@@ -254,6 +262,12 @@ class Settings {
 		'Jotform'                          => array( 'jotform.com' ),
 		'Typeform'                         => array( 'typeform.com' ),
 		'Elfsight widgets'                 => array( 'elfsight.com' ),
+		'Contact Form 7'                   => array( 'contact-form-7' ),
+		'Fluent Forms'                     => array( 'fluent-forms' ),
+		'Formidable Forms'                 => array( 'formidable' ),
+		'Mailchimp for WordPress'          => array( 'mailchimp-for-wp' ),
+		'Smash Balloon Instagram Feed'     => array( 'smash-balloon-ig' ),
+		'Slider Revolution'                => array( 'slider-revolution' ),
 	);
 
 	/** The service a pattern belongs to, or null for a custom entry. */
@@ -308,7 +322,7 @@ class Settings {
 		foreach ( $defaults as $key => $default ) {
 			if ( is_int( $default ) ) {
 				$out[ $key ] = isset( $input[ $key ] ) ? max( 0, (int) $input[ $key ] ) : 0;
-			} elseif ( 'alert_email' === $key ) {
+			} elseif ( 'alert_email' === $key || 'digest_email' === $key ) {
 				$out[ $key ] = sanitize_email( wp_unslash( $input[ $key ] ?? '' ) );
 			} elseif ( 'field_data_url' === $key ) {
 				$out[ $key ] = esc_url_raw( trim( wp_unslash( $input[ $key ] ?? '' ) ) );
@@ -319,6 +333,8 @@ class Settings {
 			} elseif ( 'csp_policy' === $key ) {
 				// Sent as a header: one line, no line breaks.
 				$out[ $key ] = sanitize_text_field( wp_unslash( $input[ $key ] ?? '' ) ) ?: $default;
+			} elseif ( 'speculation' === $key ) {
+				$out[ $key ] = in_array( $input[ $key ] ?? '', Speculation::MODES, true ) ? $input[ $key ] : $default;
 			} elseif ( 'fonts_display' === $key ) {
 				$out[ $key ] = in_array( $input[ $key ] ?? '', array( 'swap', 'optional', 'fallback' ), true ) ? $input[ $key ] : 'swap';
 			} elseif ( in_array( $key, self::LISTS, true ) && isset( $input[ $key . '__items' ] ) ) {

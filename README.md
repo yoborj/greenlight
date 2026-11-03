@@ -9,18 +9,22 @@ Since 0.2.0 it also has a **Security** tab: the hardening a managed host leaves 
 alerts when something changes. Firewall, DDoS protection, backups and malware scanning stay with the
 host; matching plugins against vulnerability feeds belongs in the QA app.
 
-Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.4.0**
-([download](https://github.com/yoborj/greenlight/releases/tag/v0.4.0), [changelog](CHANGELOG.md)).
+Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.5.0**
+([download](https://github.com/yoborj/greenlight/releases/tag/v0.5.0), [changelog](CHANGELOG.md)).
 
-![Greenlight's Overview: optimizations switched on, real visitors' Core Web Vitals for mobile and desktop (sample data), compare a page, clear caches](docs/greenlight-overview.png)
+![Greenlight's Overview: optimizations switched on, real visitors' Core Web Vitals for mobile and desktop with trend lines (sample data), compare a page, clear caches, settings preset](docs/greenlight-overview.png)
 
 ![The Scripts tab: delay switch, 10-second fallback, and one row per service in the delay list](docs/greenlight-scripts.png)
+
+![Plugin files only where used: one switch per form, feed and slider plugin, and Load the next page ahead (prefetch, prerender or off)](docs/greenlight-plugin-files.png)
 
 ![The Security tab: alerts with severity, a Trust button per domain, and where each check stands](docs/greenlight-security.png)
 
 ![Security switches: hide usernames, XML-RPC, file editor, email obfuscation, application passwords, custom login URL](docs/greenlight-security-settings.png)
 
-![The Hosting tab: cache clearing, preconnect, real-user scores with the PageSpeed Insights API key and page to measure, and the optional Claude (MCP) access switch, off](docs/greenlight-hosting.png)
+![The Hosting tab: real-user scores with the PageSpeed Insights API key and page to measure, the optional Claude (MCP) access switch, and the weekly report email](docs/greenlight-hosting.png)
+
+![The weekly report email: mobile and desktop Core Web Vitals now, a week ago and on the first day kept, and the week's security alerts (sample data)](docs/greenlight-weekly-report.png)
 
 ## What it does
 
@@ -28,18 +32,24 @@ Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.4.0**
 |---|---|---|
 | Hero image | LCP | Finds the first big image near the top (an `<img>` or an inline CSS `background-image`), removes lazy-loading from it, adds `fetchpriority="high"` and preloads it (placed after the viewport tag, so phones don't also fetch the desktop copy). Originals wider than 2048px are swapped for WordPress's 2048px copy; phones get the 1536px copy; a WebP copy is made in the background and served once ready (the original file is untouched). |
 | Self-hosted Google Fonts | FCP, CLS | Downloads the Google Fonts CSS and woff2 files in the background (WP-Cron), serves them from `uploads/greenlight/fonts/`, preloads the Latin files and removes the connections to Google. Nobody waits for the download. |
+| Size-matched fallback font | CLS | Each self-hosted family gets a fallback face built on Arial (or Times New Roman for a stack ending in `serif`), sized from the font's own measurements the way Next.js does it (Roboto: `size-adjust: 100.31%`), and placed right after the family in the page's font stacks. Text keeps its size and line breaks while the web font loads. Applies to font stacks set in the page itself (block themes' global styles, page builders); a theme's external stylesheet keeps its own fallback. |
 | Delay third-party scripts | TBT, INP | Analytics, pixels, chat and widgets load on the first scroll, tap, click, key or mouse move (and after 10 seconds anyway, so analytics counts visitors who never interact; 0 turns that off). **The theme's and plugins' own scripts are never delayed.** Consent tools and call tracking are excluded by default. |
+| Plugin files only where used | FCP, TBT | Contact Form 7, Fluent Forms, Formidable, Mailchimp for WP, Smash Balloon Instagram Feed and Slider Revolution load their CSS and JS on every page. On a page whose finished HTML has none of the plugin's markup, those files are left out (decided from the page itself, so a form in a footer widget still counts). Each plugin has a switch; add others as `handles | marker`. |
+| Load the next page ahead | navigation | When a visitor hovers a link, the next page is fetched (prefetch, the default) or fully prepared (prerender) before the click, using the browser's Speculation Rules. Uses WordPress's own speculative loading (6.8+) and makes it start on hover; prints the same rules on older WordPress. Logged-out visitors only; never wp-admin, the login page or nonce links. |
 | Defer head scripts | FCP, Speed Index | Uses WordPress's own loading strategies: a `<head>` script is deferred only when everything that depends on it can wait. jQuery and scripts with inline code are left alone. |
 | jQuery in the footer | FCP, LCP | Moves jQuery and the scripts that need it to the footer, where WordPress prints them in dependency order. Every page is checked before it's sent: if inline code (or an unknown blocking script) earlier on the page needs jQuery, jQuery is put back right before it. |
 | Embeds on interaction | LCP, TBT | Map, Vimeo, review and booking iframes load on the first interaction instead of with the page (each one can be switched off). A Google Map alone is ~450 KB. |
 | Lazy-loading | LCP, bandwidth | Native `loading="lazy"` below the fold; the first N images and the hero always load at once. Iframes (maps, embeds) lazy-load. |
 | Missing width/height | CLS | Added from the file name (`-1024x683`) or the media library, so the page doesn't jump. |
 | Responsive theme images | LCP, bandwidth | Media-library images printed without `srcset` get WordPress's smaller copies, with `sizes="auto"` on lazy images. |
-| YouTube thumbnail | TBT, bandwidth | YouTube iframes become their thumbnail and a play button; the player loads on click. |
+| YouTube and Vimeo thumbnails | TBT, bandwidth | YouTube and Vimeo iframes become their thumbnail and a play button; the player loads on click. Vimeo's thumbnail comes from its oEmbed API, fetched once per video in the background. |
+| WebP copies of all images | LCP, bandwidth | Optional (uses more disk space). Media-library JPEG and PNG images, `srcset` included, switch to WebP copies once those exist. Copies are made for new uploads and for images pages show, a few seconds of work at a time by WP-Cron, with one cache purge per batch. Originals are never changed. |
 | Cleanup | small wins | Emoji script, embed discovery, header clutter, Dashicons for visitors, front-end Heartbeat. Optional: jQuery Migrate, block CSS on classic themes. |
 | Host cache purge | — | WP Engine (memcached, page cache, CDN), SiteGround, Kinsta, Pantheon, object cache; on save, from the toolbar, or `wp greenlight purge`. |
 | Security | — | Hardening and change alerts, below. |
 | Real-user scores | — | The Overview shows Core Web Vitals from real Chrome visitors (CrUX), mobile and desktop, checked once a day: proof the fixes work. Below. |
+| Weekly report email | — | Optional. Every Monday: real-user scores (now, a week ago, the first day kept) and the week's security alerts, for sending to the client. |
+| Settings presets | — | Download one site's settings and import them on another (Overview → Settings preset, or `wp greenlight export` / `import`). |
 | Claude access (optional) | — | Off by default. Switch it on to let Claude check and run Greenlight on the site (WordPress 6.9+, with the MCP Adapter plugin). See "Optional: Claude (MCP)". |
 
 ## Security
@@ -146,7 +156,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with the speed features off, for before/after checks.
   The Security tab's features stay on.
 - The end of every page's source has a summary, e.g.
-  `<!-- Greenlight 0.4.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
+  `<!-- Greenlight 0.5.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize),
   or needs something a Security switch turns off (Jetpack and XML-RPC).
@@ -187,6 +197,9 @@ wp greenlight set delay_timeout 0
 wp greenlight security [--format=json] [--reset-baseline] [--trust=<domain>] [--run-checks] [--clear-alerts]
 wp greenlight scores [--refresh] [--format=json]
 wp greenlight compare [<path>] [--format=json]
+wp greenlight export [--with-key] > preset.json
+wp greenlight import preset.json [--dry-run]
+wp greenlight digest [--send] [--to=<email>]
 ```
 
 `wp greenlight set <key> <value>` changes any setting; switches take `1` or `0`. Every Security feature
@@ -205,6 +218,11 @@ wp greenlight set app_passwords_off 1
 wp greenlight set psi_api_key AIza...           # real-user scores
 wp greenlight set field_data_url https://www.example.com/
 wp greenlight set mcp_access 1                 # optional: Claude (MCP) access
+wp greenlight set assets_on_demand 1           # plugin files only where used
+wp greenlight set webp_images 1                # WebP copies of all images
+wp greenlight set speculation prerender        # prefetch (default), prerender or off
+wp greenlight set weekly_digest 1
+wp greenlight set digest_email client@example.com
 wp greenlight set hide_login 1                 # login at /backend-login/
 wp greenlight set login_slug clinic-door       # or another address
 wp greenlight set alert_email alerts@example.com
@@ -229,7 +247,7 @@ With `--format=json` the output is only the JSON (the options above print nothin
 contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 
 ```json
-{"greenlight_version":"0.4.0","schema":1,
+{"greenlight_version":"0.5.0","schema":1,
  "features":{"headers":true,"hsts":false,"csp_report_only":false,"hide_usernames":true,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":true,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},
  "script_baseline":["googletagmanager.com"],
  "trusted_embed_domains":["calendly.com","google.com","jotform.com","vimeo.com","youtube.com"],
@@ -242,6 +260,26 @@ contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 - `trusted_embed_domains`: the content check's trusted domains plus the hosts of the embeds held back
   under Images & embeds (a domain covers its subdomains).
 - `alerts`: newest first, at most 200.
+
+## Weekly report and presets
+
+**Weekly report email** (Hosting → Weekly report email, off by default). Every Monday at 8:00 site time,
+one email per site: whether mobile and desktop pass Core Web Vitals, LCP, INP and CLS now, a week ago
+and on the oldest day kept, and the week's security alerts by severity. It goes to **Send the report
+to**, or the security alerts address when empty. **Send a test now** sends one immediately;
+`wp greenlight digest` prints a summary and `--send` sends it. It's built from data Greenlight
+already keeps, so it adds one email a week and no requests.
+
+**Settings presets.** Overview → Settings preset → **Download preset** saves this site's settings as a
+JSON file; **Import a preset** applies one to another site and says which settings changed. The page
+measured for real-user scores never travels with a preset, and the PageSpeed key only with
+`wp greenlight export --with-key` (one key can serve every site). From the command line:
+
+```
+wp greenlight export > agency-standard.json
+wp greenlight import agency-standard.json --dry-run
+wp greenlight import agency-standard.json
+```
 
 ## Optional: Claude (MCP)
 

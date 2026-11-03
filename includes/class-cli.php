@@ -6,6 +6,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * WP-CLI: wp greenlight status | purge | fonts [--clear] | set <key> <value> | security [--format=json]
  *         | scores [--refresh] [--format=json] | compare [<path>] [--format=json]
+ *         | export [--with-key] | import <file> [--dry-run] | digest [--send] [--to=<email>]
  */
 class CLI {
 
@@ -234,5 +235,76 @@ class CLI {
 		}
 		\WP_CLI\Utils\format_items( 'table', $rows, array( 'measure', 'with', 'without' ) );
 		\WP_CLI::line( $result['with']['greenlight_summary'] ?? '' );
+	}
+
+	/**
+	 * Print this site's settings as a preset (JSON) for `wp greenlight import` on another site.
+	 *
+	 * [--with-key]
+	 * : Include the PageSpeed Insights API key (one key can serve every site).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp greenlight export > greenlight-preset.json
+	 */
+	public function export( $args, $assoc ) {
+		\WP_CLI::line( wp_json_encode( Presets::export( isset( $assoc['with-key'] ) ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+	}
+
+	/**
+	 * Apply a preset made with `wp greenlight export` (or Download preset on the Overview).
+	 *
+	 * <file>
+	 * : The preset file, or - to read it from standard input.
+	 *
+	 * [--dry-run]
+	 * : Show what would change without changing it.
+	 */
+	public function import( $args, $assoc ) {
+		$file = $args[0];
+		$json = '-' === $file ? stream_get_contents( STDIN ) : ( is_readable( $file ) ? file_get_contents( $file ) : false );
+		if ( false === $json ) {
+			\WP_CLI::error( "Can't read {$file}." );
+		}
+		$dry    = isset( $assoc['dry-run'] );
+		$result = Presets::import( json_decode( (string) $json, true ), $dry );
+		if ( is_wp_error( $result ) ) {
+			\WP_CLI::error( $result->get_error_message() );
+		}
+		if ( ! $result ) {
+			\WP_CLI::success( 'Nothing to change: this site already has these settings.' );
+			return;
+		}
+		\WP_CLI::success( ( $dry ? 'Would change ' : 'Changed ' ) . count( $result ) . ' setting(s): ' . implode( ', ', $result ) );
+	}
+
+	/**
+	 * Show (or send) the weekly report email.
+	 *
+	 * [--send]
+	 * : Send it now instead of printing a summary.
+	 *
+	 * [--to=<email>]
+	 * : Send it to this address instead of the configured one.
+	 */
+	public function digest( $args, $assoc ) {
+		if ( isset( $assoc['send'] ) ) {
+			$to = $assoc['to'] ?? Digest::recipient();
+			Digest::send( $to ) ? \WP_CLI::success( "Report sent to {$to}." ) : \WP_CLI::error( "Couldn't send the report to {$to}." );
+			return;
+		}
+		$d = Digest::data();
+		\WP_CLI::line( Digest::build()['subject'] . ' → ' . Digest::recipient() );
+		foreach ( $d['scores'] as $form => $s ) {
+			$now = $s['now'];
+			$row = $now ? ( null === $now['passes'] ? '' : ( $now['passes'] ? 'passes' : 'fails' ) ) : 'not enough data';
+			foreach ( array( 'lcp', 'inp', 'cls' ) as $key ) {
+				if ( isset( $now['metrics'][ $key ] ) ) {
+					$row .= sprintf( ' · %s %s (week ago %s)', strtoupper( $key ), Field_Data::format( $key, $now['metrics'][ $key ]['p75'] ), Field_Data::format( $key, $s['week'][ $key ] ?? null ) );
+				}
+			}
+			\WP_CLI::line( '  ' . $form . ': ' . $row );
+		}
+		\WP_CLI::line( '  alerts this week: ' . array_sum( $d['counts'] ) . ' (' . $d['counts']['high'] . ' high)' );
 	}
 }

@@ -155,9 +155,10 @@ class Html {
 
 	/**
 	 * WebP copy of an uploaded JPEG/PNG ("photo.jpg" → "photo.jpg.webp"): its URL when it exists;
-	 * otherwise a background job makes it and the original URL is returned for now.
+	 * otherwise a background job makes it and the original URL is returned for now. $queue: hand the
+	 * job to the batch queue (every image on the page) instead of its own cron event (the hero).
 	 */
-	public static function webp( $url ) {
+	public static function webp( $url, $queue = false ) {
 		if ( ! preg_match( '/\.(jpe?g|png)$/i', strtok( $url, '?' ) ) ) {
 			return $url;
 		}
@@ -168,14 +169,16 @@ class Html {
 		if ( is_readable( $path . '.webp' ) ) {
 			return strtok( $url, '?' ) . '.webp';
 		}
-		if ( ! wp_next_scheduled( 'greenlight_make_webp', array( $path ) ) ) {
+		if ( $queue ) {
+			Images::queue( $path );
+		} elseif ( ! wp_next_scheduled( 'greenlight_make_webp', array( $path ) ) ) {
 			wp_schedule_single_event( time(), 'greenlight_make_webp', array( $path ) );
 		}
 		return $url;
 	}
 
 	/** Background job: write "<file>.webp" next to an uploaded JPEG/PNG (kept only if smaller). */
-	public static function make_webp( $path ) {
+	public static function make_webp( $path, $purge = true ) {
 		$u = wp_get_upload_dir();
 		if ( 0 !== strpos( wp_normalize_path( $path ), wp_normalize_path( $u['basedir'] ) ) || ! is_readable( $path ) || file_exists( $path . '.webp' ) ) {
 			return;
@@ -194,10 +197,13 @@ class Html {
 		}
 		if ( filesize( $saved['path'] ) < filesize( $path ) ) {
 			rename( $saved['path'], $path . '.webp' );
-			do_action( 'greenlight_purge_all', 'webp made' );
-		} else {
-			unlink( $saved['path'] );
+			if ( $purge ) {
+				do_action( 'greenlight_purge_all', 'webp made' );
+			}
+			return true;
 		}
+		unlink( $saved['path'] );
+		return false;
 	}
 
 	/** A lighter copy of an uploaded image for phones (the 1536px or 1024px size), or null. */
