@@ -20,6 +20,8 @@ Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.4.0**
 
 ![Security switches: hide usernames, XML-RPC, file editor, email obfuscation, application passwords, custom login URL](docs/greenlight-security-settings.png)
 
+![The Hosting tab: cache clearing, preconnect, real-user scores with the PageSpeed Insights API key and page to measure, and the optional Claude (MCP) access switch, off](docs/greenlight-hosting.png)
+
 ## What it does
 
 | Feature | Metric | What it does |
