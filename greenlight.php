@@ -42,7 +42,7 @@ Greenlight\Hide_Login::init();
 Greenlight\Alerts::init();
 Greenlight\Content_Check::init();
 Greenlight\Field_Data::init();
-Greenlight\Abilities::init(); // WordPress 6.9+ only.
+Greenlight\Abilities::init(); // Only with "Allow Claude (MCP) access" on, WordPress 6.9+.
 Greenlight\Cleanup::init();
 Greenlight\Purge::init();
 Greenlight\Fonts::init();

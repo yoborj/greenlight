@@ -247,6 +247,7 @@ class Admin {
 					'field_data'     => array( 'check', 'Real-user scores on the Overview', 'Core Web Vitals from Chrome users (CrUX) via PageSpeed Insights, checked once a day by cron. Never on page views.' ),
 					'psi_api_key'    => array( 'text', 'PageSpeed Insights API key', 'Free from Google Cloud: enable the PageSpeed Insights API, then create an API key. Google no longer answers without one.', array( 'requires' => 'field_data', 'type' => 'password', 'placeholder' => 'AIza…' ) ),
 					'field_data_url' => array( 'text', 'Page to measure', 'Empty: this site\'s home page. On staging, enter the live site\'s address.', array( 'requires' => 'field_data', 'type' => 'url', 'placeholder' => home_url( '/' ) ) ),
+					'mcp_access'     => array( 'check', 'Allow Claude (MCP) access', 'Lets Claude check and run Greenlight through the MCP Adapter plugin: status, security report, compare a page, clear caches. Administrators only. Off: nothing is registered.', function_exists( 'wp_register_ability' ) ? array() : array( 'badge' => array( 'info', 'Needs WordPress 6.9' ) ) ),
 				),
 			),
 			'security' => array(

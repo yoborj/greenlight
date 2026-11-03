@@ -60,6 +60,7 @@ class Settings {
 			'field_data'         => 1, // Real-user scores: nothing is requested until an API key is set.
 			'field_data_url'     => '',
 			'psi_api_key'        => '',
+			'mcp_access'         => 0, // Abilities for Claude (MCP): not even registered until switched on.
 
 			// Security: hardening. These key names are part of `wp greenlight security --format=json`.
 			'headers'            => 1,

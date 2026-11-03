@@ -38,7 +38,7 @@ Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.4.0**
 | Host cache purge | — | WP Engine (memcached, page cache, CDN), SiteGround, Kinsta, Pantheon, object cache; on save, from the toolbar, or `wp greenlight purge`. |
 | Security | — | Hardening and change alerts, below. |
 | Real-user scores | — | The Overview shows Core Web Vitals from real Chrome visitors (CrUX), mobile and desktop, checked once a day: proof the fixes work. Below. |
-| Abilities (MCP) | — | On WordPress 6.9+, Claude and other MCP clients can read Greenlight's status and security report, compare a page with and without it, and clear caches. Below. |
+| Claude access (optional) | — | Off by default. Switch it on to let Claude check and run Greenlight on the site (WordPress 6.9+, with the MCP Adapter plugin). See "Optional: Claude (MCP)". |
 
 ## Security
 
@@ -175,37 +175,6 @@ numbers are used and labelled; small sites may show "Not enough Chrome users yet
   at once.
 - Switch: `field_data` (on by default, idle until a key is set).
 
-## Claude and MCP (Abilities API)
-
-On WordPress 6.9 and later, Greenlight registers four abilities in a `greenlight` category. On older
-WordPress nothing is registered. All four need a user with `manage_options`.
-
-| Ability | Changes anything? | What it returns |
-|---|---|---|
-| `greenlight/status` | no | Version, on/paused, every switch (1/0), host page cache, self-hosted font sets, login page address, overlapping plugins, real-user scores. |
-| `greenlight/security-report` | no | The same schema 1 JSON as `wp greenlight security --format=json`. |
-| `greenlight/compare` | no | One page (`path`, default `/`) loaded with Greenlight and with `?greenlight=off`, both past the host page cache: response time, HTML size, render-blocking head scripts, delayed scripts, embeds held until interaction, lazy images, preloads, hero priority, third-party hosts loaded at once, and Greenlight's summary comment. |
-| `greenlight/purge` | yes: clears caches | The cache layers cleared (host page cache, object cache), like the toolbar's "Clear caches". |
-
-They are marked public, so the REST API (`/wp-json/wp-abilities/v1/`) and the
-[MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) plugin both see them. With the MCP Adapter
-active, Claude reaches them through its default server's `discover-abilities`, `get-ability-info` and
-`execute-ability` tools. Locally (Local, WP-CLI), add to Claude's MCP config:
-
-```json
-{
-  "mcpServers": {
-    "greenlight-site": {
-      "command": "wp",
-      "args": ["--path=/path/to/site", "mcp-adapter", "serve", "--server=mcp-adapter-default-server", "--user=admin"]
-    }
-  }
-}
-```
-
-For a live site over HTTPS, the MCP Adapter's docs use `@automattic/mcp-wordpress-remote` with an
-application password. That needs Greenlight's "Turn off application passwords" switched off.
-
 ## WP-CLI
 
 ```
@@ -233,6 +202,7 @@ wp greenlight set email_obfuscation 1
 wp greenlight set app_passwords_off 1
 wp greenlight set psi_api_key AIza...           # real-user scores
 wp greenlight set field_data_url https://www.example.com/
+wp greenlight set mcp_access 1                 # optional: Claude (MCP) access
 wp greenlight set hide_login 1                 # login at /backend-login/
 wp greenlight set login_slug clinic-door       # or another address
 wp greenlight set alert_email alerts@example.com
@@ -270,6 +240,44 @@ contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 - `trusted_embed_domains`: the content check's trusted domains plus the hosts of the embeds held back
   under Images & embeds (a domain covers its subdomains).
 - `alerts`: newest first, at most 200.
+
+## Optional: Claude (MCP)
+
+Everything above works in wp-admin (and WP-CLI) on its own. If you also want to ask Claude about a
+site ("is Greenlight working on the clinic site?", "compare the contact page with and without it"),
+Greenlight can expose four **abilities** to Claude through the WordPress Abilities API. This is off by
+default: until **Hosting → Allow Claude (MCP) access** is switched on (`wp greenlight set mcp_access 1`),
+nothing is registered and client sites see no change. It needs WordPress 6.9 or later.
+
+| Ability | Changes anything? | What it returns | Same as in wp-admin |
+|---|---|---|---|
+| `greenlight/status` | no | Version, on/paused, every switch (1/0), host page cache, self-hosted font sets, login page address, overlapping plugins, real-user scores. | The Overview |
+| `greenlight/security-report` | no | The same schema 1 JSON as `wp greenlight security --format=json`. | The Security tab |
+| `greenlight/compare` | no | One page (`path`, default `/`) loaded with Greenlight and with `?greenlight=off`, both past the host page cache: response time, HTML size, render-blocking head scripts, delayed scripts, embeds held until interaction, lazy images, preloads, hero priority, third-party hosts loaded at once, and Greenlight's summary comment. | Compare a page (as numbers) |
+| `greenlight/purge` | yes: clears caches | The cache layers cleared (host page cache, object cache). | Clear caches |
+
+All four need a user with `manage_options`; only `purge` changes anything.
+
+**Only if you use Claude:** install the free [MCP Adapter](https://wordpress.org/plugins/mcp-adapter/)
+plugin on the site. Greenlight doesn't need it otherwise. Claude then reaches the abilities through the
+adapter's `discover-abilities`, `get-ability-info` and `execute-ability` tools. Locally (Local,
+WP-CLI), add to Claude's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "greenlight-site": {
+      "command": "wp",
+      "args": ["--path=/path/to/site", "mcp-adapter", "serve", "--server=mcp-adapter-default-server", "--user=admin"]
+    }
+  }
+}
+```
+
+For a live site over HTTPS, the MCP Adapter's docs use `@automattic/mcp-wordpress-remote` with an
+application password. That needs Greenlight's "Turn off application passwords" switched off. While
+access is on, the abilities can also be called through the REST API (`/wp-json/wp-abilities/v1/`) by a
+logged-in administrator.
 
 ## Install
 

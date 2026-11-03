@@ -10,10 +10,11 @@
   minutes later), asking only for field data; page views never touch it. Needs a free API key (Google's
   keyless quota is now 0): Hosting → PageSpeed Insights API key. Optional page to measure, for staging.
   "Check now" button; `wp greenlight scores [--refresh] [--format=json]`.
-- **Abilities for Claude and MCP** (WordPress 6.9+): `greenlight/status`, `greenlight/security-report`
-  (schema 1 JSON), `greenlight/compare` and `greenlight/purge`, in a `greenlight` category, public for
-  the REST API and the MCP Adapter plugin. All need `manage_options`; only `purge` changes anything.
-  Nothing is registered on older WordPress.
+- **Optional Claude (MCP) access**, off by default: Hosting → "Allow Claude (MCP) access"
+  (`mcp_access`). When on (WordPress 6.9+), Greenlight registers four abilities: `greenlight/status`,
+  `greenlight/security-report` (schema 1 JSON), `greenlight/compare` and `greenlight/purge`, public
+  for the REST API and the MCP Adapter plugin (needed only if you use Claude). All need
+  `manage_options`; only `purge` changes anything. When off, nothing is registered.
 - `wp greenlight compare [<path>]`: a page with and without Greenlight, measured.
 
 ### Unchanged

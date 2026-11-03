@@ -6,12 +6,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Abilities API (WordPress 6.9+): lets Claude and other MCP clients check and run Greenlight, through
  * the MCP Adapter plugin or the REST API (wp-abilities/v1). All need manage_options; only
- * greenlight/purge changes anything. On older WordPress nothing is registered.
+ * greenlight/purge changes anything. Optional: nothing is registered unless "Allow Claude (MCP)
+ * access" is on, or on older WordPress.
  */
 class Abilities {
 
 	public static function init() {
-		if ( ! function_exists( 'wp_register_ability' ) ) {
+		if ( ! function_exists( 'wp_register_ability' ) || ! Settings::get( 'mcp_access' ) ) {
 			return;
 		}
 		add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'category' ) );
