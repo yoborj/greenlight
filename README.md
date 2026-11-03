@@ -9,8 +9,8 @@ Since 0.2.0 it also has a **Security** tab: the hardening a managed host leaves 
 alerts when something changes. Firewall, DDoS protection, backups and malware scanning stay with the
 host; matching plugins against vulnerability feeds belongs in the QA app.
 
-Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.5.1**
-([download](https://github.com/yoborj/greenlight/releases/tag/v0.5.1), [changelog](CHANGELOG.md)).
+Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.6.0**
+([download](https://github.com/yoborj/greenlight/releases/tag/v0.6.0), [changelog](CHANGELOG.md)).
 
 ![Greenlight's Overview: optimizations switched on, real visitors' Core Web Vitals for mobile and desktop with trend lines (sample data), compare a page, clear caches, settings preset](docs/greenlight-overview.png)
 
@@ -20,7 +20,7 @@ Requires WordPress 6.3+ and PHP 7.4+. Current version: **0.5.1**
 
 ![The Security tab: alerts with severity, a Trust button per domain, and where each check stands](docs/greenlight-security.png)
 
-![Security switches: hide usernames, XML-RPC, file editor, email obfuscation, application passwords, custom login URL](docs/greenlight-security-settings.png)
+![Security switches: hide usernames, hide author pages, limit login attempts, XML-RPC, file editor, email obfuscation, application passwords, custom login URL](docs/greenlight-security-settings.png)
 
 ![The Hosting tab: real-user scores with the PageSpeed Insights API key and page to measure, the optional Claude (MCP) access switch, and the weekly report email](docs/greenlight-hosting.png)
 
@@ -64,7 +64,9 @@ One switch per feature. The names are the setting keys for `wp greenlight set` a
 | `headers` | on | On front-end HTML pages: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. A header the host, theme or another plugin already sends is left as it is. |
 | `hsts` | off | `Strict-Transport-Security: max-age=<hsts_max_age>`, over HTTPS only. The max-age defaults to 300 seconds: raise it (31536000 = a year) once every page works on HTTPS. |
 | `csp_report_only` | off | Sends `csp_policy` as `Content-Security-Policy-Report-Only`. Never enforced: Greenlight's inline delayed-script loader has no nonce, so an enforced CSP would block it. Add `report-uri https://…` to the policy to collect reports. |
-| `hide_usernames` | on | For logged-out visitors: `?author=N` and `?author_name=x` redirect to the home page, `/wp/v2/users` REST routes don't exist, oEmbed responses drop the author, and the login form gives one message for a wrong username and a wrong password (so it can't confirm which usernames exist). The core users sitemap is removed. Logged-in users (the block editor) keep everything. |
+| `hide_usernames` | on | For logged-out visitors: `?author=N` and `?author_name=x` redirect to the home page, `/wp/v2/users` REST routes don't exist, oEmbed responses drop the author, the login form gives one message for a wrong username and a wrong password, and the lost-password form shows the same "check your email" screen for every name, so neither confirms which usernames exist. The core users sitemap is removed. Logged-in users (the block editor) keep everything. |
+| `hide_author_pages` | off | Author archives (`/author/name/`) show login names: logged-out visitors are sent to the home page and "By …" links point home. Off by default because some blogs use author pages. |
+| `login_limit` | on | Limit login attempts: after `login_limit_attempts` (default 5, 3–20) failed logins from one address within 15 minutes, that address can't log in for 15 minutes, doubling with each lockout that day up to 24 hours. A successful login clears it. The visitor's address is read safely: `CF-Connecting-IP` only from Cloudflare's own ranges, `X-Forwarded-For` only from a private-network proxy, otherwise `REMOTE_ADDR` (filter: `greenlight_client_ip`). Written only on failed logins. |
 | `xmlrpc_off` | on | `xmlrpc.php` answers 403 before the rest of WordPress loads; no X-Pingback header. Jetpack needs XML-RPC: when it is active, the Overview lists it as an overlapping plugin and every admin screen shows a warning. |
 | `file_editor_off` | on | Defines `DISALLOW_FILE_EDIT`, unless wp-config.php already defines it either way. |
 | `email_obfuscation` | on | Email addresses in the page text and in `href="mailto:…"` are encoded with WordPress's `antispambot()` inside Greenlight's HTML pass. Script and style contents, comments and every other attribute are untouched. Visitors see no difference. |
@@ -156,7 +158,7 @@ minutes to refresh; compare with `?greenlight=off`, or test the origin directly.
 - `?greenlight=off` on any URL shows the page with the speed features off, for before/after checks.
   The Security tab's features stay on.
 - The end of every page's source has a summary, e.g.
-  `<!-- Greenlight 0.5.1 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
+  `<!-- Greenlight 0.6.0 (7 ms): fonts: 1 local, lcp: background hero-2048x1365.jpg, delayed: 4, emails: 1 … -->`.
 - The Greenlight page warns when another plugin does the same job (WP Rocket, Autoptimize,
   Perfmatters, LiteSpeed Cache, W3 Total Cache, SiteGround Optimizer, Flying Scripts, WP-Optimize),
   or needs something a Security switch turns off (Jetpack and XML-RPC).
@@ -215,6 +217,9 @@ wp greenlight set xmlrpc_off 0
 wp greenlight set file_editor_off 1
 wp greenlight set email_obfuscation 1
 wp greenlight set app_passwords_off 1
+wp greenlight set login_limit 1
+wp greenlight set login_limit_attempts 5
+wp greenlight set hide_author_pages 1
 wp greenlight set psi_api_key AIza...           # real-user scores
 wp greenlight set field_data_url https://www.example.com/
 wp greenlight set mcp_access 1                 # optional: Claude (MCP) access
@@ -247,7 +252,7 @@ With `--format=json` the output is only the JSON (the options above print nothin
 contract with the QA app (yoborj/wpe-qa-checklist). Any change bumps `schema`.
 
 ```json
-{"greenlight_version":"0.5.1","schema":1,
+{"greenlight_version":"0.6.0","schema":1,
  "features":{"headers":true,"hsts":false,"csp_report_only":false,"hide_usernames":true,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":true,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},
  "script_baseline":["googletagmanager.com"],
  "trusted_embed_domains":["calendly.com","google.com","jotform.com","vimeo.com","youtube.com"],

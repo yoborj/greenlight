@@ -46,9 +46,15 @@ class Security {
 		if ( $s['hide_usernames'] ) {
 			add_action( 'template_redirect', array( __CLASS__, 'author_redirect' ), 0 ); // Before redirect_canonical() turns ?author=1 into /author/admin/.
 			add_filter( 'wp_login_errors', array( __CLASS__, 'login_errors' ) );
+			add_action( 'lostpassword_post', array( __CLASS__, 'lost_password' ), 99, 2 );
 			add_filter( 'rest_endpoints', array( __CLASS__, 'rest_endpoints' ) );
 			add_filter( 'wp_sitemaps_add_provider', function ( $provider, $name ) { return 'users' === $name ? false : $provider; }, 10, 2 );
 			add_filter( 'oembed_response_data', array( __CLASS__, 'oembed_data' ) );
+		}
+
+		if ( $s['hide_author_pages'] ) {
+			add_action( 'template_redirect', array( __CLASS__, 'author_pages' ), 0 );
+			add_filter( 'author_link', array( __CLASS__, 'author_link' ) );
 		}
 
 		if ( $s['headers'] || $s['hsts'] || $s['csp_report_only'] ) {
@@ -123,6 +129,32 @@ class Security {
 		}
 		$errors->add( 'greenlight_invalid_login', '<strong>Error:</strong> The username, email address or password is incorrect. <a href="' . esc_url( wp_lostpassword_url() ) . '">Lost your password?</a>' );
 		return $errors;
+	}
+
+	/**
+	 * Lost password: WordPress says "there is no account with that username" for a name that doesn't
+	 * exist and sends a real one to the "check your email" screen. Unknown names now get that screen too.
+	 */
+	public static function lost_password( $errors, $user ) {
+		if ( $user || ! $errors instanceof \WP_Error || $errors->has_errors() || is_user_logged_in() ) {
+			return; // A real account, an empty field, or an admin sending a reset from Users.
+		}
+		$url = add_query_arg( 'checkemail', 'confirm', wp_login_url() );
+		wp_safe_redirect( ! empty( $_REQUEST['redirect_to'] ) ? wp_sanitize_redirect( wp_unslash( $_REQUEST['redirect_to'] ) ) : $url ); // phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
+		exit;
+	}
+
+	/** Author archives (/author/<name>/) show login names: logged-out visitors go to the home page. */
+	public static function author_pages() {
+		if ( is_author() && ! is_user_logged_in() ) {
+			wp_safe_redirect( home_url( '/' ), 301 );
+			exit;
+		}
+	}
+
+	/** Author links in themes ("By admin") point home for logged-out visitors, so the name never shows. */
+	public static function author_link( $link ) {
+		return is_user_logged_in() ? $link : home_url( '/' );
 	}
 
 	/** No /wp/v2/users for logged-out visitors. The block editor is logged in, so it keeps its author lists. */

@@ -81,6 +81,9 @@ class Settings {
 			'file_editor_off'    => 1,
 			'email_obfuscation'  => 1,
 			'app_passwords_off'  => 0, // Zapier and other integrations sign in with these.
+			'hide_author_pages'  => 0, // Blogs may link author pages: switched on per site.
+			'login_limit'        => 1,
+			'login_limit_attempts' => 5,
 			'hide_login'         => 0, // Moves the login page: off until someone chooses to.
 			'login_slug'         => 'backend-login',
 
@@ -363,6 +366,7 @@ class Settings {
 		$out['lazy_eager_count'] = min( 10, $out['lazy_eager_count'] );
 		$out['delay_timeout']    = min( 60, $out['delay_timeout'] );
 		$out['hsts_max_age']     = min( 63072000, $out['hsts_max_age'] );
+		$out['login_limit_attempts'] = max( 3, min( 20, $out['login_limit_attempts'] ) );
 		if ( $out['hide_login'] && ! Hide_Login::valid( $out['login_slug'] ) ) {
 			// No login address, or one that isn't allowed: pick one rather than leave the switch doing nothing.
 			$out['login_slug'] = Hide_Login::suggest();

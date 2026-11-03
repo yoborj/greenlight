@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.5.1 — 2026-11-03
+## 0.6.0 — 2026-11-03
+
+### Added
+- **Limit login attempts** (Security, on): after 5 failed logins from one address within 15 minutes
+  (adjustable, 3–20), that address is locked out for 15 minutes, doubling with each lockout that day up
+  to 24 hours. Reads the real visitor address behind Cloudflare and private proxies without trusting
+  headers anyone could fake. Written only on failed logins.
+- **Hide author pages** (Security, off by default): logged-out visitors to `/author/name/` go to the home
+  page, and theme "By …" links point home, so login names don't show.
+- **Hide usernames** now also covers the lost-password form: unknown names get the same "check your email"
+  screen as real ones.
 
 ### Security
 - Image URLs that climb out of the uploads folder (`uploads/../..`, also URL-encoded) are no longer
