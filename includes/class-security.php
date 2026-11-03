@@ -45,6 +45,7 @@ class Security {
 
 		if ( $s['hide_usernames'] ) {
 			add_action( 'template_redirect', array( __CLASS__, 'author_redirect' ), 0 ); // Before redirect_canonical() turns ?author=1 into /author/admin/.
+			add_filter( 'wp_login_errors', array( __CLASS__, 'login_errors' ) );
 			add_filter( 'rest_endpoints', array( __CLASS__, 'rest_endpoints' ) );
 			add_filter( 'wp_sitemaps_add_provider', function ( $provider, $name ) { return 'users' === $name ? false : $provider; }, 10, 2 );
 			add_filter( 'oembed_response_data', array( __CLASS__, 'oembed_data' ) );
@@ -94,12 +95,34 @@ class Security {
 		}
 	}
 
-	/** ?author=1 redirects to /author/<username>/ for anyone who asks; send logged-out visitors home instead. */
+	/**
+	 * ?author=1 redirects to /author/<username>/ for anyone who asks, and ?author_name=x answers
+	 * differently for real and made-up names; send logged-out visitors home instead.
+	 */
 	public static function author_redirect() {
-		if ( ! is_user_logged_in() && isset( $_GET['author'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		if ( ! is_user_logged_in() && ( isset( $_GET['author'] ) || isset( $_GET['author_name'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			wp_safe_redirect( home_url( '/' ), 301 );
 			exit;
 		}
+	}
+
+	/**
+	 * The login form says "the username X is not registered" for a wrong name and "incorrect password"
+	 * for a right one, which tells bots which usernames exist. Both become one message.
+	 */
+	public static function login_errors( $errors ) {
+		if ( ! $errors instanceof \WP_Error ) {
+			return $errors;
+		}
+		$codes = array_intersect( $errors->get_error_codes(), array( 'invalid_username', 'invalid_email', 'incorrect_password' ) );
+		if ( ! $codes || in_array( 'invalidcombo', $errors->get_error_codes(), true ) ) {
+			return $errors;
+		}
+		foreach ( $codes as $code ) {
+			$errors->remove( $code );
+		}
+		$errors->add( 'greenlight_invalid_login', '<strong>Error:</strong> The username, email address or password is incorrect. <a href="' . esc_url( wp_lostpassword_url() ) . '">Lost your password?</a>' );
+		return $errors;
 	}
 
 	/** No /wp/v2/users for logged-out visitors. The block editor is logged in, so it keeps its author lists. */

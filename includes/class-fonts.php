@@ -321,7 +321,10 @@ class Fonts {
 					'#url\(([^)]+)\)#',
 					function ( $u ) use ( &$files, $d ) {
 						$src  = trim( $u[1], '\'" ' );
-						$name = sanitize_file_name( wp_basename( wp_parse_url( $src, PHP_URL_PATH ) ) );
+						$name = sanitize_file_name( wp_basename( (string) wp_parse_url( $src, PHP_URL_PATH ) ) );
+						if ( ! preg_match( '/\.(woff2?|ttf|otf)$/i', $name ) || 0 !== strpos( $src, 'https://fonts.gstatic.com/' ) ) {
+							return $u[0]; // Only font files from Google's font server are ever written to disk.
+						}
 						if ( ! isset( $files[ $name ] ) ) {
 							$res = wp_remote_get( $src, array( 'timeout' => 20, 'user-agent' => self::UA ) );
 							if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
@@ -345,7 +348,7 @@ class Fonts {
 		if ( ! $files ) {
 			return;
 		}
-		file_put_contents( $d['path'] . '/fonts.css', "/* Self-hosted by Greenlight from {$href} */\n" . $css );
+		file_put_contents( $d['path'] . '/fonts.css', '/* Self-hosted by Greenlight from ' . str_replace( '*/', '', $href ) . " */\n" . $css );
 		file_put_contents( $d['path'] . '/meta.json', wp_json_encode( array( 'href' => $href, 'built' => time(), 'files' => array_keys( $files ), 'preload' => array_keys( $preload ) ) ) );
 		if ( Settings::get( 'fonts_fallback' ) ) {
 			self::fallbacks( $href );

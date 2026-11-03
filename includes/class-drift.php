@@ -63,7 +63,7 @@ class Drift {
 				return;
 			}
 			$home    = wp_parse_url( home_url() );
-			$path    = strtok( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ), '?' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$path    = substr( esc_url_raw( strtok( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ), '?' ) ), 0, 200 ) ?: '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 			$url     = $home['scheme'] . '://' . $home['host'] . ( isset( $home['port'] ) ? ':' . $home['port'] : '' ) . $path;
 			$post_id = is_singular() ? get_queried_object_id() : null;
 			$state['alerted'] = self::merge( $state['alerted'], array_keys( $found ) );

@@ -73,7 +73,18 @@ class Html {
 	public static function is_upload( $url ) {
 		$uploads = wp_get_upload_dir();
 		$base    = preg_replace( '#^https?:#', '', $uploads['baseurl'] );
+		$path    = rawurldecode( (string) strtok( (string) $url, '?' ) );
+		if ( preg_match( '#(^|/)\.\.(/|$)|\\|\x00#', $path ) ) {
+			return false; // "uploads/../.." would point outside the uploads folder.
+		}
 		return 0 === strpos( preg_replace( '#^https?:#', '', $url ), $base );
+	}
+
+	/** The real path of an existing file inside the uploads folder, or null (symlinks and ".." resolved). */
+	public static function inside_uploads( $path ) {
+		$real = realpath( (string) $path );
+		$base = realpath( wp_get_upload_dir()['basedir'] );
+		return ( $real && $base && 0 === strpos( wp_normalize_path( $real ), trailingslashit( wp_normalize_path( $base ) ) ) ) ? $real : null;
 	}
 
 	/**
@@ -150,7 +161,7 @@ class Html {
 		}
 		$u   = wp_get_upload_dir();
 		$rel = substr( preg_replace( '#^https?:#', '', strtok( $url, '?' ) ), strlen( preg_replace( '#^https?:#', '', $u['baseurl'] ) ) );
-		return $u['basedir'] . $rel;
+		return self::inside_uploads( $u['basedir'] . rawurldecode( $rel ) ) ? $u['basedir'] . rawurldecode( $rel ) : null;
 	}
 
 	/**
@@ -179,9 +190,8 @@ class Html {
 
 	/** Background job: write "<file>.webp" next to an uploaded JPEG/PNG (kept only if smaller). */
 	public static function make_webp( $path, $purge = true ) {
-		$u = wp_get_upload_dir();
-		if ( 0 !== strpos( wp_normalize_path( $path ), wp_normalize_path( $u['basedir'] ) ) || ! is_readable( $path ) || file_exists( $path . '.webp' ) ) {
-			return;
+		if ( ! preg_match( '/\.(jpe?g|png)$/i', (string) $path ) || ! self::inside_uploads( $path ) || ! is_readable( $path ) || file_exists( $path . '.webp' ) ) {
+			return; // Only JPEG/PNG files really inside uploads.
 		}
 		if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
 			return;

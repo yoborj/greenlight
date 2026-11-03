@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.1 — 2026-11-03
+
+### Security
+- Image URLs that climb out of the uploads folder (`uploads/../..`, also URL-encoded) are no longer
+  treated as uploads, and WebP copies are only ever made for JPEG/PNG files whose real path is inside
+  uploads. Before, an author could make Greenlight write a .webp copy of an image elsewhere on the site.
+- Self-hosted fonts only ever write font files (.woff2, .woff, .ttf, .otf) from fonts.gstatic.com.
+- Hide usernames: `?author_name=x` now redirects like `?author=N`, and the login form shows one message
+  for a wrong username and a wrong password, so neither confirms that a username exists.
+- Script drift alerts store at most 200 characters of the page address, cleaned.
+
+### Unchanged
+- `wp greenlight security --format=json` (schema 1).
+
 ## 0.5.0 — 2026-11-03
 
 ### Added
